@@ -23,7 +23,8 @@ document.addEventListener("DOMContentLoaded", function () {
   init();
 
   function init() {
-    document.getElementById("current-year").textContent = new Date().getFullYear();
+    document.getElementById("current-year").textContent =
+      new Date().getFullYear();
     setupTabs();
     setupKeyboardShortcuts();
     setupButtons();
@@ -36,15 +37,24 @@ document.addEventListener("DOMContentLoaded", function () {
   function setupGlobalKeyFocus() {
     document.addEventListener("keydown", (e) => {
       const activeEl = document.activeElement;
-      const isEditable = activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.isContentEditable);
-      
+      const isEditable =
+        activeEl &&
+        (activeEl.tagName === "INPUT" ||
+          activeEl.tagName === "TEXTAREA" ||
+          activeEl.isContentEditable);
+
       if (isEditable) return;
-      
+
       if (e.ctrlKey || e.altKey || e.metaKey || e.key.length !== 1) return;
-      
+
       e.preventDefault();
       vwcInput.focus();
-      vwcInput.setRangeText(e.key, vwcInput.selectionStart, vwcInput.selectionEnd, "end");
+      vwcInput.setRangeText(
+        e.key,
+        vwcInput.selectionStart,
+        vwcInput.selectionEnd,
+        "end",
+      );
       vwcInput.dispatchEvent(new Event("input"));
     });
   }
@@ -79,12 +89,12 @@ document.addEventListener("DOMContentLoaded", function () {
       if (debounceTimer) {
         clearTimeout(debounceTimer);
       }
-      
+
       const vwc = vwcInput.value.trim();
-      
+
       // Validate basic syntax
       validateInput(vwc);
-      
+
       // Debounce the conversion
       if (vwc.length > 0) {
         debounceTimer = setTimeout(() => {
@@ -100,17 +110,17 @@ document.addEventListener("DOMContentLoaded", function () {
   function validateInput(vwc) {
     // Verwijder vorige validatie-states
     vwcInput.classList.remove("input-error", "input-warning");
-    
+
     if (!vwc) return;
-    
+
     // Controleer op ongebalanceerde haakjes
     const openBrackets = (vwc.match(/\(/g) || []).length;
     const closeBrackets = (vwc.match(/\)/g) || []).length;
-    
+
     if (openBrackets !== closeBrackets) {
       vwcInput.classList.add("input-warning");
     }
-    
+
     // Controleer op onafgesloten VWC codes
     const hashCount = (vwc.match(/#/g) || []).length;
     if (hashCount % 2 !== 0) {
@@ -129,11 +139,12 @@ document.addEventListener("DOMContentLoaded", function () {
   function loadAutoSave() {
     const saved = localStorage.getItem("brailk_draft");
     const timestamp = localStorage.getItem("brailk_timestamp");
-    
+
     if (saved && saved.trim()) {
       // Check if saved within last 24 hours
-      const hoursSinceSave = (Date.now() - parseInt(timestamp)) / (1000 * 60 * 60);
-      
+      const hoursSinceSave =
+        (Date.now() - parseInt(timestamp)) / (1000 * 60 * 60);
+
       if (hoursSinceSave < 24) {
         vwcInput.value = saved;
         showToast("Concept hersteld");
@@ -174,11 +185,37 @@ document.addEventListener("DOMContentLoaded", function () {
     downloadBtn.addEventListener("click", downloadPDF);
   }
 
+  function sanitizeInput(input) {
+    // Verwijder karakters die problemen geven in Typst
+    const problematicChars = /["\\]/g;
+    const sanitized = input.replace(problematicChars, '');
+    
+    // Toon toast als er karakters zijn verwijderd
+    const removedCount = input.length - sanitized.length;
+    if (removedCount > 0) {
+      const charNames = [];
+      if (input.includes('"')) charNames.push('aanhalingstekens (")');
+      if (input.includes('\\')) charNames.push('backslashes (\\)');
+      showToast(`${charNames.join(' en ')} verwijderd - niet toegestaan in wiskunde`);
+    }
+    
+    return sanitized;
+  }
+
   async function performConversion() {
-    const vwc = vwcInput.value.trim();
+    let vwc = vwcInput.value.trim();
     if (!vwc) {
       resetOutput();
       return;
+    }
+
+    // Sanitize input voor Typst
+    const originalVwc = vwc;
+    vwc = sanitizeInput(vwc);
+    
+    // Update textarea als er iets is veranderd
+    if (vwc !== originalVwc) {
+      vwcInput.value = vwc;
     }
 
     // Prevent duplicate conversions
@@ -249,13 +286,15 @@ document.addEventListener("DOMContentLoaded", function () {
           </div>
         </div>
       `;
-      
+
       // Add copy image handler
-      document.getElementById("copy-image-btn").addEventListener("click", () => {
-        copyImageToClipboard(data.image);
-      });
+      document
+        .getElementById("copy-image-btn")
+        .addEventListener("click", () => {
+          copyImageToClipboard(data.image);
+        });
     }
-    
+
     if (window.Prism) {
       Prism.highlightElement(document.querySelector("#typst-output code"));
     }
@@ -272,7 +311,7 @@ document.addEventListener("DOMContentLoaded", function () {
       });
 
       const data = await response.json();
-      
+
       if (data.error) {
         showToast("Error: " + data.error);
         return;
@@ -290,7 +329,7 @@ document.addEventListener("DOMContentLoaded", function () {
       // Copy to clipboard
       if (navigator.clipboard && navigator.clipboard.write) {
         await navigator.clipboard.write([
-          new ClipboardItem({ "image/png": blob })
+          new ClipboardItem({ "image/png": blob }),
         ]);
         showToast("Afbeelding gekopieerd!");
       } else {
@@ -313,11 +352,16 @@ document.addEventListener("DOMContentLoaded", function () {
     let userMessage = msg;
     let errorTitle = "Er is iets misgegaan";
     let errorSuggestion = "";
-    
-    if (msg.includes("EOF") || msg.includes("unclosed") || msg.includes("delimiter")) {
+
+    if (
+      msg.includes("EOF") ||
+      msg.includes("unclosed") ||
+      msg.includes("delimiter")
+    ) {
       errorTitle = "Niet afgesloten haakjes of #";
       userMessage = "Je bent een haakje of # vergeten af te sluiten.";
-      errorSuggestion = "💡 Controleer of elk '(' een ')' heeft en elke '#' een tweede '#' heeft om te sluiten.";
+      errorSuggestion =
+        "💡 Controleer of elk '(' een ')' heeft en elke '#' een tweede '#' heeft om te sluiten.";
     } else if (msg.includes("bracket") || msg.includes("parenthesis")) {
       errorTitle = "Haakjes kloppen niet";
       userMessage = "Je haakjes zijn niet in evenwicht.";
@@ -325,13 +369,15 @@ document.addEventListener("DOMContentLoaded", function () {
     } else if (msg.includes("index") || msg.includes("range")) {
       errorTitle = "Fout in VWC code";
       userMessage = "Je VWC notatie bevat een fout.";
-      errorSuggestion = "💡 Controleer of je alle codes correct hebt geschreven (bijv. $br voor breuken).";
+      errorSuggestion =
+        "💡 Controleer of je alle codes correct hebt geschreven (bijv. $br voor breuken).";
     } else if (msg.includes("TypstError") || msg.includes("compile")) {
       errorTitle = "Kan niet renderen";
       userMessage = "De VWC code kon niet worden omgezet naar wiskunde.";
-      errorSuggestion = "💡 Probeer het eenvoudiger te maken of controleer je notatie.";
+      errorSuggestion =
+        "💡 Probeer het eenvoudiger te maken of controleer je notatie.";
     }
-    
+
     renderedOutput.innerHTML = `
       <div class="error-container">
         <div class="error-icon">
@@ -344,15 +390,15 @@ document.addEventListener("DOMContentLoaded", function () {
         <div class="error-content">
           <h3 class="error-title">${escapeHtml(errorTitle)}</h3>
           <p class="error-message">${escapeHtml(userMessage)}</p>
-          ${errorSuggestion ? `<p class="error-suggestion">${escapeHtml(errorSuggestion)}</p>` : ''}
+          ${errorSuggestion ? `<p class="error-suggestion">${escapeHtml(errorSuggestion)}</p>` : ""}
         </div>
-        ${traceback ? `<details class="error-details"><summary>Technische details (voor ontwikkelaars)</summary><pre>${escapeHtml(traceback)}</pre></details>` : ''}
+        ${traceback ? `<details class="error-details"><summary>Technische details (voor nerds)</summary><pre>${escapeHtml(traceback)}</pre></details>` : ""}
       </div>
     `;
-    
+
     // Add error indicator to input
     vwcInput.classList.add("input-error");
-    
+
     // Clear error on input
     const clearError = () => {
       vwcInput.classList.remove("input-error");
