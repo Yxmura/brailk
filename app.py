@@ -217,6 +217,48 @@ def download_pdf():
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 
+@app.route("/export-png", methods=["POST"])
+def export_png():
+    """
+    POST /export-png
+    Body: { "vwc": "your VWC code", "display": false, "ppi": 144 }
+    Returns: { "png": "base64encoded...", "typst": "..." }
+    """
+    data = request.get_json()
+    if not data or "vwc" not in data:
+        return jsonify({"error": "Missing 'vwc' field"}), 400
+
+    vwc_input = data["vwc"]
+    display = data.get("display", False)
+    ppi = data.get("ppi", 144.0)
+
+    try:
+        # Convert VWC to Typst
+        typst_code = vwc_to_typst(vwc_input, display=display)
+
+        # Wrap in proper Typst document with high-res PNG
+        full_typst = f"#set page(width: auto, height: auto, margin: 1em)\n{align_and_center(typst_code)}"
+
+        # Render to high-res PNG
+        png_data = render_typst_to_image(full_typst, format="png", ppi=float(ppi))
+
+        # Encode as base64 for easy copying
+        png_base64 = base64.b64encode(png_data).decode("utf-8")
+
+        return jsonify(
+            {
+                "typst": typst_code,
+                "png": png_base64,
+                "input": vwc_input,
+            }
+        )
+
+    except Exception as e:
+        import traceback
+
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
+
 if __name__ == "__main__":
     print("Starting VWC to Typst Converter...")
     print(f"Open http://localhost:5000 in your browser")

@@ -12,6 +12,14 @@ document.addEventListener("DOMContentLoaded", function () {
   const tabs = document.querySelectorAll(".tab");
   const panels = document.querySelectorAll(".tab-panel");
 
+  // Debounce timer for auto-convert
+  let debounceTimer = null;
+  const DEBOUNCE_DELAY = 500; // 500ms
+
+  // Track conversion state
+  let isConverting = false;
+  let lastConvertedInput = "";
+
   init();
 
   function init() {
@@ -20,6 +28,9 @@ document.addEventListener("DOMContentLoaded", function () {
     setupKeyboardShortcuts();
     setupButtons();
     setupGlobalKeyFocus();
+    setupAutoConvert();
+    setupAutoSave();
+    loadAutoSave();
   }
 
   function setupGlobalKeyFocus() {
@@ -61,20 +72,104 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  function setupAutoConvert() {
+    // Debounced auto-convert on input
+    vwcInput.addEventListener("input", () => {
+      // Clear existing timer
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      
+      const vwc = vwcInput.value.trim();
+      
+      // Validate basic syntax
+      validateInput(vwc);
+      
+      // Debounce the conversion
+      if (vwc.length > 0) {
+        debounceTimer = setTimeout(() => {
+          // Only convert if input changed
+          if (vwc !== lastConvertedInput) {
+            performConversion();
+          }
+        }, DEBOUNCE_DELAY);
+      }
+    });
+  }
+
+  function validateInput(vwc) {
+    // Remove previous validation states
+    vwcInput.classList.remove("input-error", "input-warning");
+    
+    if (!vwc) return;
+    
+    // Check for unbalanced brackets
+    const openBrackets = (vwc.match(/\(/g) || []).length;
+    const closeBrackets = (vwc.match(/\)/g) || []).length;
+    
+    if (openBrackets !== closeBrackets) {
+      vwcInput.classList.add("input-warning");
+      // Don't block, just warn
+    }
+    
+    // Check for unclosed VWC codes
+    const hashCount = (vwc.match(/#/g) || []).length;
+    if (hashCount % 2 !== 0) {
+      vwcInput.classList.add("input-warning");
+    }
+  }
+
+  function setupAutoSave() {
+    // Save to localStorage on input
+    vwcInput.addEventListener("input", () => {
+      localStorage.setItem("brailk_draft", vwcInput.value);
+      localStorage.setItem("brailk_timestamp", Date.now());
+    });
+  }
+
+  function loadAutoSave() {
+    const saved = localStorage.getItem("brailk_draft");
+    const timestamp = localStorage.getItem("brailk_timestamp");
+    
+    if (saved && saved.trim()) {
+      // Check if saved within last 24 hours
+      const hoursSinceSave = (Date.now() - parseInt(timestamp)) / (1000 * 60 * 60);
+      
+      if (hoursSinceSave < 24) {
+        vwcInput.value = saved;
+        showToast("Draft restored");
+        // Auto-convert the restored draft
+        setTimeout(() => performConversion(), 100);
+      }
+    }
+  }
+
   function setupButtons() {
-    convertBtn.addEventListener("click", performConversion);
+    convertBtn.addEventListener("click", () => {
+      // Cancel debounce and convert immediately
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      performConversion();
+    });
 
     clearBtn.addEventListener("click", () => {
       vwcInput.value = "";
       vwcInput.focus();
       resetOutput();
+      localStorage.removeItem("brailk_draft");
+      lastConvertedInput = "";
     });
 
     pasteBtn.addEventListener("click", async () => {
       try {
         const text = await navigator.clipboard.readText();
         vwcInput.value = text;
-      } catch {}
+        vwcInput.dispatchEvent(new Event("input"));
+        showToast("Pasted from clipboard");
+      } catch {
+        showToast("Could not access clipboard");
+      }
     });
 
     downloadBtn.addEventListener("click", downloadPDF);
@@ -82,7 +177,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
   async function performConversion() {
     const vwc = vwcInput.value.trim();
-    if (!vwc) return;
+    if (!vwc) {
+      resetOutput();
+      return;
+    }
+
+    // Prevent duplicate conversions
+    if (isConverting) return;
+    isConverting = true;
+    lastConvertedInput = vwc;
+
+    // Show loading state
+    showLoading();
+    convertBtn.disabled = true;
 
     try {
       const response = await fetch("/convert-and-render", {
@@ -94,13 +201,27 @@ document.addEventListener("DOMContentLoaded", function () {
       const data = await response.json();
 
       if (data.error) {
-        showError(data.error);
+        showDetailedError(data.error, data.traceback);
       } else {
         showResult(data);
+        // Clear any error states on success
+        vwcInput.classList.remove("input-error");
       }
     } catch (err) {
-      showError("Failed: " + err.message);
+      showDetailedError("Network error: " + err.message, null);
+    } finally {
+      isConverting = false;
+      convertBtn.disabled = false;
     }
+  }
+
+  function showLoading() {
+    renderedOutput.innerHTML = `
+      <div class="empty loading-state">
+        <div class="spinner"></div>
+        <p>Converting...</p>
+      </div>
+    `;
   }
 
   function resetOutput() {
@@ -115,21 +236,121 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (data.image) {
       renderedOutput.innerHTML = `
-                <div class="rendered-content">
-                    <div class="svg-container">${data.image}</div>
-                </div>
-            `;
+        <div class="rendered-content">
+          <div class="svg-container">${data.image}</div>
+          <div class="image-actions">
+            <button type="button" class="btn-icon" id="copy-image-btn" title="Copy image">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="4" y="4" width="8" height="10" rx="1" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M4 6H12" stroke="currentColor" stroke-width="1.5"/>
+                <rect x="6" y="2" width="4" height="2" rx="0.5" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+              Copy
+            </button>
+          </div>
+        </div>
+      `;
+      
+      // Add copy image handler
+      document.getElementById("copy-image-btn").addEventListener("click", () => {
+        copyImageToClipboard(data.image);
+      });
     }
-    Prism.highlightElement(document.querySelector("#typst-output code"));
+    
+    if (window.Prism) {
+      Prism.highlightElement(document.querySelector("#typst-output code"));
+    }
   }
 
-  function showError(msg) {
-    renderedOutput.innerHTML = `<div class="empty error-state"><p>${escapeHtml(msg)}</p></div>`;
+  async function copyImageToClipboard(svgContent) {
+    try {
+      // Convert SVG to PNG for clipboard
+      const vwc = vwcInput.value.trim();
+      const response = await fetch("/export-png", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vwc: vwc, display: false, ppi: 288 }),
+      });
+
+      const data = await response.json();
+      
+      if (data.error) {
+        showToast("Error: " + data.error);
+        return;
+      }
+
+      // Convert base64 to blob
+      const byteCharacters = atob(data.png);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: "image/png" });
+
+      // Copy to clipboard
+      if (navigator.clipboard && navigator.clipboard.write) {
+        await navigator.clipboard.write([
+          new ClipboardItem({ "image/png": blob })
+        ]);
+        showToast("Image copied to clipboard!");
+      } else {
+        // Fallback: download
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `math-${Date.now()}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast("Image downloaded");
+      }
+    } catch (err) {
+      showToast("Failed to copy: " + err.message);
+    }
+  }
+
+  function showDetailedError(msg, traceback) {
+    // Clean up the error message
+    let userMessage = msg;
+    
+    // Make common errors more user-friendly
+    if (msg.includes("EOF")) {
+      userMessage = "Incomplete expression: Check for missing closing brackets or # symbols";
+    } else if (msg.includes("bracket") || msg.includes("parenthesis")) {
+      userMessage = "Unbalanced brackets: Make sure every '(' has a matching ')'";
+    } else if (msg.includes("index") || msg.includes("range")) {
+      userMessage = "Invalid syntax: Check your VWC notation";
+    }
+    
+    renderedOutput.innerHTML = `
+      <div class="empty error-state">
+        <div class="error-icon">!</div>
+        <p class="error-title">Oops! Something went wrong</p>
+        <p class="error-message">${escapeHtml(userMessage)}</p>
+        ${traceback ? `<details class="error-details"><summary>Technical details</summary><pre>${escapeHtml(traceback)}</pre></details>` : ''}
+      </div>
+    `;
+    
+    // Add error indicator to input
+    vwcInput.classList.add("input-error");
+    
+    // Clear error on input
+    const clearError = () => {
+      vwcInput.classList.remove("input-error");
+      vwcInput.removeEventListener("input", clearError);
+    };
+    vwcInput.addEventListener("input", clearError);
   }
 
   async function downloadPDF() {
     const vwc = vwcInput.value.trim();
-    if (!vwc) return;
+    if (!vwc) {
+      showToast("Enter some VWC code first");
+      return;
+    }
+
+    convertBtn.disabled = true;
+    showToast("Generating PDF...");
 
     try {
       const response = await fetch("/download-pdf", {
@@ -148,15 +369,22 @@ document.addEventListener("DOMContentLoaded", function () {
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
-        showToast("PDF downloaded");
+        showToast("PDF downloaded!");
+      } else {
+        const data = await response.json();
+        showToast("Error: " + (data.error || "Failed to generate PDF"));
       }
-    } catch {}
+    } catch (err) {
+      showToast("Failed to download: " + err.message);
+    } finally {
+      convertBtn.disabled = false;
+    }
   }
 
   function showToast(msg) {
     toast.textContent = msg;
     toast.classList.add("show");
-    setTimeout(() => toast.classList.remove("show"), 2000);
+    setTimeout(() => toast.classList.remove("show"), 3000);
   }
 
   function escapeHtml(text) {
