@@ -477,7 +477,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function showToast(msg) {
     toast.textContent = msg;
     toast.classList.add("show");
-    setTimeout(() => toast.classList.remove("show"), 3000);
+    setTimeout(() => toast.classList.remove("show"), 6000);
   }
 
   function escapeHtml(text) {
