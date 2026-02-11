@@ -518,51 +518,86 @@ body {
     opacity: 1;
 }
 
-/* Error State */
-.error-state {
-    color: #dc2626;
+/* Error Container */
+.error-container {
+    display: flex;
     flex-direction: column;
-    padding: 20px;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 32px 24px;
+    height: 100%;
+    background: linear-gradient(135deg, #fef2f2 0%, #fff5f5 100%);
+    border-radius: var(--radius);
+    border: 1px solid #fecaca;
 }
 
 .error-icon {
-    width: 48px;
-    height: 48px;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
-    background: #fee2e2;
+    background: #fecaca;
     color: #dc2626;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
-    font-weight: bold;
-    margin-bottom: 12px;
+    margin-bottom: 16px;
+    animation: error-pop 0.3s ease-out;
+}
+
+@keyframes error-pop {
+    0% { transform: scale(0); opacity: 0; }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.error-content {
+    max-width: 90%;
 }
 
 .error-title {
     font-weight: 600;
-    font-size: 16px;
-    margin-bottom: 8px;
+    font-size: 18px;
+    color: #991b1b;
+    margin: 0 0 8px 0;
 }
 
 .error-message {
     font-size: 14px;
     color: #7f1d1d;
-    max-width: 80%;
+    margin: 0 0 12px 0;
     line-height: 1.5;
 }
 
+.error-suggestion {
+    font-size: 13px;
+    color: #92400e;
+    background: #fef3c7;
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    margin: 0;
+    border-left: 3px solid #f59e0b;
+}
+
 .error-details {
-    margin-top: 16px;
+    margin-top: 20px;
+    width: 100%;
+    max-width: 400px;
     font-size: 12px;
     color: var(--text-secondary);
+    text-align: left;
 }
 
 .error-details summary {
     cursor: pointer;
-    padding: 8px;
+    padding: 8px 12px;
     background: var(--bg);
     border-radius: var(--radius);
+    user-select: none;
+}
+
+.error-details summary:hover {
+    background: var(--input);
 }
 
 .error-details pre {
@@ -575,6 +610,8 @@ body {
     font-size: 11px;
     white-space: pre-wrap;
     word-break: break-all;
+    max-height: 150px;
+    overflow-y: auto;
 }
 
 /* Loading State */

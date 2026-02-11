@@ -98,21 +98,20 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function validateInput(vwc) {
-    // Remove previous validation states
+    // Verwijder vorige validatie-states
     vwcInput.classList.remove("input-error", "input-warning");
     
     if (!vwc) return;
     
-    // Check for unbalanced brackets
+    // Controleer op ongebalanceerde haakjes
     const openBrackets = (vwc.match(/\(/g) || []).length;
     const closeBrackets = (vwc.match(/\)/g) || []).length;
     
     if (openBrackets !== closeBrackets) {
       vwcInput.classList.add("input-warning");
-      // Don't block, just warn
     }
     
-    // Check for unclosed VWC codes
+    // Controleer op onafgesloten VWC codes
     const hashCount = (vwc.match(/#/g) || []).length;
     if (hashCount % 2 !== 0) {
       vwcInput.classList.add("input-warning");
@@ -137,7 +136,7 @@ document.addEventListener("DOMContentLoaded", function () {
       
       if (hoursSinceSave < 24) {
         vwcInput.value = saved;
-        showToast("Draft restored");
+        showToast("Concept hersteld");
         // Auto-convert the restored draft
         setTimeout(() => performConversion(), 100);
       }
@@ -166,9 +165,9 @@ document.addEventListener("DOMContentLoaded", function () {
         const text = await navigator.clipboard.readText();
         vwcInput.value = text;
         vwcInput.dispatchEvent(new Event("input"));
-        showToast("Pasted from clipboard");
+        showToast("Geplakt van klembord");
       } catch {
-        showToast("Could not access clipboard");
+        showToast("Kan klembord niet benaderen");
       }
     });
 
@@ -219,16 +218,16 @@ document.addEventListener("DOMContentLoaded", function () {
     renderedOutput.innerHTML = `
       <div class="empty loading-state">
         <div class="spinner"></div>
-        <p>Converting...</p>
+        <p>Bezig met converteren...</p>
       </div>
     `;
   }
 
   function resetOutput() {
     renderedOutput.innerHTML =
-      '<div class="empty"><p>Your rendered math will appear here</p></div>';
+      '<div class="empty"><p>Jouw wiskunde verschijnt hier</p></div>';
     typstOutput.innerHTML =
-      '<code class="placeholder language-typst">// Typst code will appear here</code>';
+      '<code class="placeholder language-typst">// Typst code verschijnt hier</code>';
   }
 
   function showResult(data) {
@@ -239,13 +238,13 @@ document.addEventListener("DOMContentLoaded", function () {
         <div class="rendered-content">
           <div class="svg-container">${data.image}</div>
           <div class="image-actions">
-            <button type="button" class="btn-icon" id="copy-image-btn" title="Copy image">
+            <button type="button" class="btn-icon" id="copy-image-btn" title="Afbeelding kopiëren">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <rect x="4" y="4" width="8" height="10" rx="1" stroke="currentColor" stroke-width="1.5"/>
                 <path d="M4 6H12" stroke="currentColor" stroke-width="1.5"/>
                 <rect x="6" y="2" width="4" height="2" rx="0.5" stroke="currentColor" stroke-width="1.5"/>
               </svg>
-              Copy
+              Kopiëren
             </button>
           </div>
         </div>
@@ -293,41 +292,61 @@ document.addEventListener("DOMContentLoaded", function () {
         await navigator.clipboard.write([
           new ClipboardItem({ "image/png": blob })
         ]);
-        showToast("Image copied to clipboard!");
+        showToast("Afbeelding gekopieerd!");
       } else {
         // Fallback: download
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `math-${Date.now()}.png`;
+        a.download = `wiskunde-${Date.now()}.png`;
         a.click();
         URL.revokeObjectURL(url);
-        showToast("Image downloaded");
+        showToast("Afbeelding gedownload");
       }
     } catch (err) {
-      showToast("Failed to copy: " + err.message);
+      showToast("Kopiëren mislukt: " + err.message);
     }
   }
 
   function showDetailedError(msg, traceback) {
-    // Clean up the error message
+    // Vertaal technische errors naar begrijpelijke Nederlands
     let userMessage = msg;
+    let errorTitle = "Er is iets misgegaan";
+    let errorSuggestion = "";
     
-    // Make common errors more user-friendly
-    if (msg.includes("EOF")) {
-      userMessage = "Incomplete expression: Check for missing closing brackets or # symbols";
+    if (msg.includes("EOF") || msg.includes("unclosed") || msg.includes("delimiter")) {
+      errorTitle = "Niet afgesloten haakjes of #";
+      userMessage = "Je bent een haakje of # vergeten af te sluiten.";
+      errorSuggestion = "💡 Controleer of elk '(' een ')' heeft en elke '#' een tweede '#' heeft om te sluiten.";
     } else if (msg.includes("bracket") || msg.includes("parenthesis")) {
-      userMessage = "Unbalanced brackets: Make sure every '(' has a matching ')'";
+      errorTitle = "Haakjes kloppen niet";
+      userMessage = "Je haakjes zijn niet in evenwicht.";
+      errorSuggestion = "💡 Tel het aantal '(' en ')' - dit moet gelijk zijn.";
     } else if (msg.includes("index") || msg.includes("range")) {
-      userMessage = "Invalid syntax: Check your VWC notation";
+      errorTitle = "Fout in VWC code";
+      userMessage = "Je VWC notatie bevat een fout.";
+      errorSuggestion = "💡 Controleer of je alle codes correct hebt geschreven (bijv. $br voor breuken).";
+    } else if (msg.includes("TypstError") || msg.includes("compile")) {
+      errorTitle = "Kan niet renderen";
+      userMessage = "De VWC code kon niet worden omgezet naar wiskunde.";
+      errorSuggestion = "💡 Probeer het eenvoudiger te maken of controleer je notatie.";
     }
     
     renderedOutput.innerHTML = `
-      <div class="empty error-state">
-        <div class="error-icon">!</div>
-        <p class="error-title">Oops! Something went wrong</p>
-        <p class="error-message">${escapeHtml(userMessage)}</p>
-        ${traceback ? `<details class="error-details"><summary>Technical details</summary><pre>${escapeHtml(traceback)}</pre></details>` : ''}
+      <div class="error-container">
+        <div class="error-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+        </div>
+        <div class="error-content">
+          <h3 class="error-title">${escapeHtml(errorTitle)}</h3>
+          <p class="error-message">${escapeHtml(userMessage)}</p>
+          ${errorSuggestion ? `<p class="error-suggestion">${escapeHtml(errorSuggestion)}</p>` : ''}
+        </div>
+        ${traceback ? `<details class="error-details"><summary>Technische details (voor ontwikkelaars)</summary><pre>${escapeHtml(traceback)}</pre></details>` : ''}
       </div>
     `;
     
@@ -345,12 +364,12 @@ document.addEventListener("DOMContentLoaded", function () {
   async function downloadPDF() {
     const vwc = vwcInput.value.trim();
     if (!vwc) {
-      showToast("Enter some VWC code first");
+      showToast("Voer eerst VWC code in");
       return;
     }
 
     convertBtn.disabled = true;
-    showToast("Generating PDF...");
+    showToast("PDF wordt gegenereerd...");
 
     try {
       const response = await fetch("/download-pdf", {
@@ -369,13 +388,13 @@ document.addEventListener("DOMContentLoaded", function () {
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
-        showToast("PDF downloaded!");
+        showToast("PDF gedownload!");
       } else {
         const data = await response.json();
-        showToast("Error: " + (data.error || "Failed to generate PDF"));
+        showToast("Fout: " + (data.error || "PDF genereren mislukt"));
       }
     } catch (err) {
-      showToast("Failed to download: " + err.message);
+      showToast("Download mislukt: " + err.message);
     } finally {
       convertBtn.disabled = false;
     }

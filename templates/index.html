@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="nl">
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Brailk — VWC to Typst Converter</title>
+        <title>Brailk — VWC naar Typst Converter</title>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
@@ -21,7 +21,7 @@
         <div class="page">
             <main class="main">
                 <section class="hero">
-                    <h1>VWC to Typst</h1>
+                    <h1>VWC naar Typst</h1>
                 </section>
 
                 <section class="converter" id="convert">
@@ -29,14 +29,14 @@
                         <div class="input-panel">
                             <div class="panel-header">
                                 <label for="vwc-input" class="panel-label"
-                                    >VWC Input</label
+                                    >VWC Invoer</label
                                 >
                                 <div class="panel-actions">
                                     <button
                                         type="button"
                                         class="btn-icon"
                                         id="paste-btn"
-                                        title="Paste"
+                                        title="Plakken"
                                     >
                                         <svg
                                             width="16"
@@ -73,7 +73,7 @@
                                         type="button"
                                         class="btn-icon"
                                         id="clear-btn"
-                                        title="Clear"
+                                        title="Wissen"
                                     >
                                         <svg
                                             width="16"
@@ -94,7 +94,7 @@
                             <textarea
                                 id="vwc-input"
                                 class="input-area"
-                                placeholder="Enter VWC code here...&#10;&#10;Example: $br x+1/x-1#&#10;Result: frac(x+1, x-1)"
+                                placeholder="Voer VWC code in...&#10;&#10;Voorbeeld: $br x+1/x-1#&#10;Resultaat: frac(x+1, x-1)"
                                 rows="10"
                             ></textarea>
                         </div>
@@ -106,7 +106,7 @@
                                         class="tab active"
                                         data-tab="rendered"
                                     >
-                                        Rendered
+                                        Weergave
                                     </button>
                                     <button class="tab" data-tab="typst">
                                         Typst Code
@@ -154,8 +154,7 @@
                                     >
                                         <div class="empty">
                                             <p>
-                                                Your rendered math will appear
-                                                here
+                                                Jouw wiskunde verschijnt hier
                                             </p>
                                         </div>
                                     </div>
@@ -165,7 +164,7 @@
                                     <pre
                                         id="typst-output"
                                         class="code-view"
-                                    ><code class="placeholder">// Typst code will appear here</code></pre>
+                                    ><code class="placeholder">// Typst code verschijnt hier</code></pre>
                                 </div>
                             </div>
                         </div>
@@ -191,7 +190,7 @@
                                     stroke-linejoin="round"
                                 />
                             </svg>
-                            Convert
+                            Converteren
                         </button>
                     </div>
                 </section>
