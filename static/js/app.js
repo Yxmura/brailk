@@ -188,17 +188,19 @@ document.addEventListener("DOMContentLoaded", function () {
   function sanitizeInput(input) {
     // Verwijder karakters die problemen geven in Typst
     const problematicChars = /["\\]/g;
-    const sanitized = input.replace(problematicChars, '');
-    
+    const sanitized = input.replace(problematicChars, "");
+
     // Toon toast als er karakters zijn verwijderd
     const removedCount = input.length - sanitized.length;
     if (removedCount > 0) {
       const charNames = [];
       if (input.includes('"')) charNames.push('aanhalingstekens (")');
-      if (input.includes('\\')) charNames.push('backslashes (\\)');
-      showToast(`${charNames.join(' en ')} verwijderd - niet toegestaan in wiskunde`);
+      if (input.includes("\\")) charNames.push("backslashes (\\)");
+      showToast(
+        `${charNames.join(" en ")} verwijderd - niet toegestaan in wiskunde`,
+      );
     }
-    
+
     return sanitized;
   }
 
@@ -212,7 +214,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Sanitize input voor Typst
     const originalVwc = vwc;
     vwc = sanitizeInput(vwc);
-    
+
     // Update textarea als er iets is veranderd
     if (vwc !== originalVwc) {
       vwcInput.value = vwc;
@@ -255,7 +257,7 @@ document.addEventListener("DOMContentLoaded", function () {
     renderedOutput.innerHTML = `
       <div class="empty loading-state">
         <div class="spinner"></div>
-        <p>Bezig met converteren...</p>
+        <p>Bezig met omzetten...</p>
       </div>
     `;
   }
@@ -363,7 +365,7 @@ document.addEventListener("DOMContentLoaded", function () {
             <h3 class="error-title">${escapeHtml(msg)}</h3>
             <p class="error-suggestion">${escapeHtml(backendSuggestion)}</p>
           </div>
-          ${traceback ? `<details class="error-details"><summary>Technische details (voor ontwikkelaars)</summary><pre>${escapeHtml(traceback)}</pre></details>` : ''}
+          ${traceback ? `<details class="error-details"><summary>Technische details (voor ontwikkelaars)</summary><pre>${escapeHtml(traceback)}</pre></details>` : ""}
         </div>
       `;
       vwcInput.classList.add("input-error");
@@ -374,7 +376,7 @@ document.addEventListener("DOMContentLoaded", function () {
       vwcInput.addEventListener("input", clearError);
       return;
     }
-    
+
     // Fallback for old-style errors
     let userMessage = msg;
     let errorTitle = "Er is iets misgegaan";
@@ -392,13 +394,12 @@ document.addEventListener("DOMContentLoaded", function () {
     } else if (msg.includes("bracket") || msg.includes("parenthesis")) {
       errorTitle = "Haakjes kloppen niet";
       userMessage = "Je haakjes zijn niet in evenwicht.";
-      errorSuggestion =
-        "💡 Tel het aantal '(' en ')' - dit moet gelijk zijn.";
+      errorSuggestion = "💡 Tel het aantal '(' en ')' - dit moet gelijk zijn.";
     } else if (msg.includes("index") || msg.includes("range")) {
       errorTitle = "Fout in VWC code";
       userMessage = "Je VWC notatie bevat een fout.";
       errorSuggestion =
-        '💡 Controleer of je alle codes correct hebt geschreven (bijv. $br voor breuken).';
+        "💡 Controleer of je alle codes correct hebt geschreven (bijv. $br voor breuken).";
     } else if (msg.includes("TypstError") || msg.includes("compile")) {
       errorTitle = "Kan niet renderen";
       userMessage = "De VWC code kon niet worden omgezet naar wiskunde.";
