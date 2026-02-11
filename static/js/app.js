@@ -237,7 +237,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const data = await response.json();
 
       if (data.error) {
-        showDetailedError(data.error, data.traceback);
+        showDetailedError(data.error, data.traceback, data.suggestion);
       } else {
         showResult(data);
         // Clear any error states on success
@@ -347,8 +347,35 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  function showDetailedError(msg, traceback) {
-    // Vertaal technische errors naar begrijpelijke Nederlands
+  function showDetailedError(msg, traceback, backendSuggestion) {
+    // Use backend suggestion if available (from VWC validation)
+    if (backendSuggestion) {
+      renderedOutput.innerHTML = `
+        <div class="error-container">
+          <div class="error-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+          </div>
+          <div class="error-content">
+            <h3 class="error-title">${escapeHtml(msg)}</h3>
+            <p class="error-suggestion">${escapeHtml(backendSuggestion)}</p>
+          </div>
+          ${traceback ? `<details class="error-details"><summary>Technische details (voor ontwikkelaars)</summary><pre>${escapeHtml(traceback)}</pre></details>` : ''}
+        </div>
+      `;
+      vwcInput.classList.add("input-error");
+      const clearError = () => {
+        vwcInput.classList.remove("input-error");
+        vwcInput.removeEventListener("input", clearError);
+      };
+      vwcInput.addEventListener("input", clearError);
+      return;
+    }
+    
+    // Fallback for old-style errors
     let userMessage = msg;
     let errorTitle = "Er is iets misgegaan";
     let errorSuggestion = "";
@@ -365,12 +392,13 @@ document.addEventListener("DOMContentLoaded", function () {
     } else if (msg.includes("bracket") || msg.includes("parenthesis")) {
       errorTitle = "Haakjes kloppen niet";
       userMessage = "Je haakjes zijn niet in evenwicht.";
-      errorSuggestion = "💡 Tel het aantal '(' en ')' - dit moet gelijk zijn.";
+      errorSuggestion =
+        "💡 Tel het aantal '(' en ')' - dit moet gelijk zijn.";
     } else if (msg.includes("index") || msg.includes("range")) {
       errorTitle = "Fout in VWC code";
       userMessage = "Je VWC notatie bevat een fout.";
       errorSuggestion =
-        "💡 Controleer of je alle codes correct hebt geschreven (bijv. $br voor breuken).";
+        '💡 Controleer of je alle codes correct hebt geschreven (bijv. $br voor breuken).';
     } else if (msg.includes("TypstError") || msg.includes("compile")) {
       errorTitle = "Kan niet renderen";
       userMessage = "De VWC code kon niet worden omgezet naar wiskunde.";

@@ -11,6 +11,12 @@ import typst
 from flask import Flask, jsonify, render_template, request
 
 from vwc_converter import vwc_to_typst
+from vwc_converter.exceptions import (
+    VWCSyntaxError,
+    VWCUnclosedStructureError,
+    VWCNestingError,
+    VWCMismatchedCloserError,
+)
 
 app = Flask(__name__)
 
@@ -83,6 +89,22 @@ def convert_endpoint():
     try:
         typst_output = vwc_to_typst(data["vwc"], display=data.get("display", False))
         return jsonify({"typst": typst_output, "input": data["vwc"]})
+    except (VWCUnclosedStructureError, VWCNestingError, VWCMismatchedCloserError) as e:
+        return jsonify(
+            {
+                "error": e.message,
+                "suggestion": e.suggestion,
+                "error_type": "vwc_syntax",
+            }
+        ), 400
+    except VWCSyntaxError as e:
+        return jsonify(
+            {
+                "error": e.message,
+                "suggestion": e.suggestion,
+                "error_type": "vwc_syntax",
+            }
+        ), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -129,6 +151,26 @@ def convert_and_render():
             }
         )
 
+    except (VWCUnclosedStructureError, VWCNestingError, VWCMismatchedCloserError) as e:
+        # VWC syntax errors - return structured error for frontend
+        return jsonify(
+            {
+                "error": e.message,
+                "suggestion": e.suggestion,
+                "position": e.position,
+                "error_type": "vwc_syntax",
+            }
+        ), 400
+    except VWCSyntaxError as e:
+        # Generic VWC syntax error
+        return jsonify(
+            {
+                "error": e.message,
+                "suggestion": e.suggestion,
+                "position": e.position,
+                "error_type": "vwc_syntax",
+            }
+        ), 400
     except Exception as e:
         import traceback
 
@@ -211,6 +253,22 @@ def download_pdf():
             download_name="math.pdf",
         )
 
+    except (VWCUnclosedStructureError, VWCNestingError, VWCMismatchedCloserError) as e:
+        return jsonify(
+            {
+                "error": e.message,
+                "suggestion": e.suggestion,
+                "error_type": "vwc_syntax",
+            }
+        ), 400
+    except VWCSyntaxError as e:
+        return jsonify(
+            {
+                "error": e.message,
+                "suggestion": e.suggestion,
+                "error_type": "vwc_syntax",
+            }
+        ), 400
     except Exception as e:
         import traceback
 
@@ -253,6 +311,22 @@ def export_png():
             }
         )
 
+    except (VWCUnclosedStructureError, VWCNestingError, VWCMismatchedCloserError) as e:
+        return jsonify(
+            {
+                "error": e.message,
+                "suggestion": e.suggestion,
+                "error_type": "vwc_syntax",
+            }
+        ), 400
+    except VWCSyntaxError as e:
+        return jsonify(
+            {
+                "error": e.message,
+                "suggestion": e.suggestion,
+                "error_type": "vwc_syntax",
+            }
+        ), 400
     except Exception as e:
         import traceback
 

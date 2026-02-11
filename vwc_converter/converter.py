@@ -127,6 +127,11 @@ class VWCConverter:
 
     def convert(self) -> str:
         """Main entry point. Returns the Typst string."""
+        # Validate syntax before conversion
+        from .validator import validate_vwc
+
+        validate_vwc(self.input)
+
         while self.pos < len(self.input):
             ch = self.peek()
 
