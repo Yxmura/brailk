@@ -15,9 +15,27 @@ document.addEventListener("DOMContentLoaded", function () {
   init();
 
   function init() {
+    document.getElementById("current-year").textContent = new Date().getFullYear();
     setupTabs();
     setupKeyboardShortcuts();
     setupButtons();
+    setupGlobalKeyFocus();
+  }
+
+  function setupGlobalKeyFocus() {
+    document.addEventListener("keydown", (e) => {
+      const activeEl = document.activeElement;
+      const isEditable = activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.isContentEditable);
+      
+      if (isEditable) return;
+      
+      if (e.ctrlKey || e.altKey || e.metaKey || e.key.length !== 1) return;
+      
+      e.preventDefault();
+      vwcInput.focus();
+      vwcInput.setRangeText(e.key, vwcInput.selectionStart, vwcInput.selectionEnd, "end");
+      vwcInput.dispatchEvent(new Event("input"));
+    });
   }
 
   function setupTabs() {
