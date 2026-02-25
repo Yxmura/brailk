@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const clearBtn = document.getElementById("clear-btn");
   const pasteBtn = document.getElementById("paste-btn");
   const downloadBtn = document.getElementById("download-btn");
+  const themeToggle = document.getElementById("theme-toggle");
 
   const tabs = document.querySelectorAll(".tab");
   const panels = document.querySelectorAll(".tab-panel");
@@ -30,6 +31,7 @@ document.addEventListener("DOMContentLoaded", function () {
     setupTabs();
     setupKeyboardShortcuts();
     setupButtons();
+    setupThemeToggle();
     setupGlobalKeyFocus();
     setupSyntaxHighlighting();
     setupAutoConvert();
@@ -83,6 +85,45 @@ document.addEventListener("DOMContentLoaded", function () {
         performConversion();
       }
     });
+  }
+
+  function setupThemeToggle() {
+    if (!themeToggle) return;
+
+    const savedTheme = localStorage.getItem("brailk_theme");
+    if (savedTheme === "dark" || savedTheme === "light") {
+      applyTheme(savedTheme, false);
+    } else {
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      applyTheme(prefersDark ? "dark" : "light", false);
+    }
+
+    themeToggle.addEventListener("click", () => {
+      const nextTheme = document.body.classList.contains("theme-dark")
+        ? "light"
+        : "dark";
+      applyTheme(nextTheme, true);
+    });
+  }
+
+  function applyTheme(theme, showNotification) {
+    const isDark = theme === "dark";
+    document.body.classList.toggle("theme-dark", isDark);
+
+    if (themeToggle) {
+      themeToggle.setAttribute("aria-pressed", isDark ? "true" : "false");
+      themeToggle.textContent = isDark ? "Licht" : "Donker";
+      themeToggle.setAttribute(
+        "aria-label",
+        isDark ? "Licht thema inschakelen" : "Donker thema inschakelen",
+      );
+    }
+
+    localStorage.setItem("brailk_theme", theme);
+
+    if (showNotification) {
+      showToast(isDark ? "Donker thema actief" : "Licht thema actief");
+    }
   }
 
   function setupSyntaxHighlighting() {

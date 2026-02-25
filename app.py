@@ -4,6 +4,7 @@ Flask web interface for VWC to Typst converter with live rendering.
 
 import base64
 import os
+import re
 import tempfile
 from pathlib import Path
 
@@ -67,6 +68,31 @@ def render_typst_to_image(
     finally:
         # Always clean up the temp file
         os.unlink(temp_path)
+
+
+def sanitize_svg_for_theming(svg_text: str) -> str:
+    """Make Typst SVG theme-aware by removing fixed white background and hard black ink."""
+    # Remove the first full-canvas white background path Typst inserts.
+    svg_text = re.sub(
+        r"<path class=\"typst-shape\" fill=\"#(?:fff|ffffff)\"[^>]*/>\s*",
+        "",
+        svg_text,
+        count=1,
+        flags=re.IGNORECASE,
+    )
+
+    # Allow CSS to control math color for light/dark mode.
+    svg_text = re.sub(
+        r'fill="#000000"', 'fill="currentColor"', svg_text, flags=re.IGNORECASE
+    )
+    svg_text = re.sub(
+        r'stroke="#000000"',
+        'stroke="currentColor"',
+        svg_text,
+        flags=re.IGNORECASE,
+    )
+
+    return svg_text
 
 
 @app.route("/")
@@ -141,6 +167,7 @@ def convert_and_render():
 
         # SVG is text, so decode it directly (no base64 needed)
         svg_text = image_data.decode("utf-8")
+        svg_text = sanitize_svg_for_theming(svg_text)
 
         return jsonify(
             {
