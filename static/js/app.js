@@ -1,5 +1,7 @@
 document.addEventListener("DOMContentLoaded", function () {
   const vwcInput = document.getElementById("vwc-input");
+  const vwcHighlight = document.getElementById("vwc-highlight");
+  const inputHint = document.getElementById("input-hint");
   const convertBtn = document.getElementById("convert-btn");
   const renderedOutput = document.getElementById("rendered-output");
   const typstOutput = document.getElementById("typst-output");
@@ -29,6 +31,7 @@ document.addEventListener("DOMContentLoaded", function () {
     setupKeyboardShortcuts();
     setupButtons();
     setupGlobalKeyFocus();
+    setupSyntaxHighlighting();
     setupAutoConvert();
     setupAutoSave();
     loadAutoSave();
@@ -82,6 +85,68 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  function setupSyntaxHighlighting() {
+    const syncHighlightScroll = () => {
+      vwcHighlight.scrollTop = vwcInput.scrollTop;
+      vwcHighlight.scrollLeft = vwcInput.scrollLeft;
+    };
+
+    vwcInput.addEventListener("input", updateInputHighlight);
+    vwcInput.addEventListener("scroll", syncHighlightScroll);
+
+    updateInputHighlight();
+  }
+
+  function updateInputHighlight() {
+    const input = vwcInput.value;
+    vwcHighlight.innerHTML = highlightVwcInput(input);
+  }
+
+  function highlightVwcInput(input) {
+    if (!input) {
+      return "";
+    }
+
+    let highlighted = "";
+    let i = 0;
+
+    while (i < input.length) {
+      if (input.startsWith("$wt", i)) {
+        highlighted += wrapSyntaxToken("vwc-token-wt", "$wt");
+        i += 3;
+        continue;
+      }
+
+      if (input.startsWith("$br", i)) {
+        highlighted += wrapSyntaxToken("vwc-token-br", "$br");
+        i += 3;
+        continue;
+      }
+
+      const char = input[i];
+
+      if (char === "#") {
+        highlighted += wrapSyntaxToken("vwc-token-hash", char);
+      } else if (char === "^") {
+        highlighted += wrapSyntaxToken("vwc-token-sup", char);
+      } else if (char === "_") {
+        highlighted += wrapSyntaxToken("vwc-token-sub", char);
+      } else if (char === "μ" || char === "µ") {
+        highlighted += wrapSyntaxToken("vwc-token-mu", char);
+      } else {
+        highlighted += escapeHtml(char);
+      }
+
+      i += 1;
+    }
+
+    return highlighted;
+  }
+
+  function wrapSyntaxToken(className, token) {
+    return `<span class="${className}">${escapeHtml(token)}</span>`;
+  }
+
   function setupAutoConvert() {
     // Debounced auto-convert on input
     vwcInput.addEventListener("input", () => {
@@ -110,22 +175,43 @@ document.addEventListener("DOMContentLoaded", function () {
   function validateInput(vwc) {
     // Verwijder vorige validatie-states
     vwcInput.classList.remove("input-error", "input-warning");
+    setInputHint("");
 
     if (!vwc) return;
+
+    const warnings = [];
 
     // Controleer op ongebalanceerde haakjes
     const openBrackets = (vwc.match(/\(/g) || []).length;
     const closeBrackets = (vwc.match(/\)/g) || []).length;
 
     if (openBrackets !== closeBrackets) {
-      vwcInput.classList.add("input-warning");
+      warnings.push("Haakjes lijken niet in balans.");
     }
 
     // Controleer op onafgesloten VWC codes
     const hashCount = (vwc.match(/#/g) || []).length;
     if (hashCount % 2 !== 0) {
-      vwcInput.classList.add("input-warning");
+      warnings.push("Mogelijk ontbreekt een afsluitende #.");
     }
+
+    if (warnings.length > 0) {
+      vwcInput.classList.add("input-warning");
+      setInputHint(warnings.join(" "));
+    }
+  }
+
+  function setInputHint(message) {
+    if (!inputHint) return;
+
+    if (!message) {
+      inputHint.textContent = "";
+      inputHint.classList.remove("show");
+      return;
+    }
+
+    inputHint.textContent = message;
+    inputHint.classList.add("show");
   }
 
   function setupAutoSave() {
@@ -147,6 +233,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
       if (hoursSinceSave < 24) {
         vwcInput.value = saved;
+        updateInputHighlight();
+        validateInput(saved.trim());
         showToast("Concept hersteld");
         // Auto-convert the restored draft
         setTimeout(() => performConversion(), 100);
@@ -165,6 +253,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     clearBtn.addEventListener("click", () => {
       vwcInput.value = "";
+      updateInputHighlight();
+      validateInput("");
       vwcInput.focus();
       resetOutput();
       localStorage.removeItem("brailk_draft");
@@ -218,6 +308,8 @@ document.addEventListener("DOMContentLoaded", function () {
     // Update textarea als er iets is veranderd
     if (vwc !== originalVwc) {
       vwcInput.value = vwc;
+      updateInputHighlight();
+      validateInput(vwc);
     }
 
     // Prevent duplicate conversions
@@ -277,7 +369,7 @@ document.addEventListener("DOMContentLoaded", function () {
         <div class="rendered-content">
           <div class="svg-container">${data.image}</div>
           <div class="image-actions">
-            <button type="button" class="btn-icon" id="copy-image-btn" title="Afbeelding kopiëren">
+            <button type="button" class="btn-icon" id="copy-image-btn" title="Afbeelding kopiëren" aria-label="Afbeelding kopiëren">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <rect x="4" y="4" width="8" height="10" rx="1" stroke="currentColor" stroke-width="1.5"/>
                 <path d="M4 6H12" stroke="currentColor" stroke-width="1.5"/>

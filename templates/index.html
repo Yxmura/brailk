@@ -37,6 +37,7 @@
                                         class="btn-icon"
                                         id="paste-btn"
                                         title="Plakken"
+                                        aria-label="Plakken"
                                     >
                                         <svg
                                             width="16"
@@ -74,6 +75,7 @@
                                         class="btn-icon"
                                         id="clear-btn"
                                         title="Wissen"
+                                        aria-label="Invoer wissen"
                                     >
                                         <svg
                                             width="16"
@@ -91,24 +93,34 @@
                                     </button>
                                 </div>
                             </div>
-                            <textarea
-                                id="vwc-input"
-                                class="input-area"
-                                placeholder="Voer VWC code in...&#10;&#10;Voorbeeld: $br x+1/x-1#&#10;Resultaat: frac(x+1, x-1)"
-                                rows="10"
-                            ></textarea>
+                            <div class="input-editor">
+                                <pre
+                                    id="vwc-highlight"
+                                    class="input-highlight"
+                                    aria-hidden="true"
+                                ></pre>
+                                <textarea
+                                    id="vwc-input"
+                                    class="input-area"
+                                    placeholder="Voer VWC code in...&#10;&#10;Voorbeeld: $br x+1/x-1#&#10;Resultaat: frac(x+1, x-1)"
+                                    rows="10"
+                                    spellcheck="false"
+                                ></textarea>
+                            </div>
+                            <div id="input-hint" class="input-hint" role="status"></div>
                         </div>
 
                         <div class="output-panel">
                             <div class="panel-header">
                                 <div class="tabs">
                                     <button
+                                        type="button"
                                         class="tab active"
                                         data-tab="rendered"
                                     >
                                         Weergave
                                     </button>
-                                    <button class="tab" data-tab="typst">
+                                    <button type="button" class="tab" data-tab="typst">
                                         Typst Code
                                     </button>
                                 </div>
@@ -118,6 +130,7 @@
                                         class="btn-icon"
                                         id="download-btn"
                                         title="Download PDF"
+                                        aria-label="Download PDF"
                                     >
                                         <svg
                                             width="16"

@@ -11,10 +11,17 @@
     --text-muted: #999999;
     --primary: #333333;
     --primary-hover: #000000;
+    --syntax-wt: #c2410c;
+    --syntax-br: #1d4ed8;
+    --syntax-hash: #7c3aed;
+    --syntax-power: #b91c1c;
+    --syntax-sub: #0f766e;
+    --syntax-greek: #15803d;
+    --focus: #1d4ed8;
     --radius: 6px;
     --font-sans:
         -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    --font-mono: "SF Mono", Monaco, "Cascadia Code", monospace;
+    --font-mono: "JetBrains Mono", "SF Mono", Monaco, monospace;
 }
 
 * {
@@ -34,11 +41,7 @@ body {
     font-size: 14px;
     line-height: 1.5;
     color: var(--text);
-    background-color: #F7F7F5;
-    /* Editorial grid pattern */
-    background-image: linear-gradient(#E5E5E5 1px, transparent 1px),
-                      linear-gradient(90deg, #E5E5E5 1px, transparent 1px);
-    background-size: 40px 40px;
+    background-color: #f3f4f6;
 }
 
 .page {
@@ -136,7 +139,7 @@ body {
         min-height: 250px;
     }
 
-    .input-area {
+    .input-editor {
         min-height: 150px;
     }
 
@@ -213,7 +216,7 @@ body {
         gap: 8px;
     }
 
-    .input-area {
+    .input-editor {
         min-height: 120px;
     }
 }
@@ -274,15 +277,49 @@ body {
 }
 
 /* Textarea */
-.input-area {
+.input-editor {
+    position: relative;
     width: 100%;
     flex: 1;
     min-height: 0;
-    padding: 12px;
     background: var(--input);
+    border-radius: var(--radius);
+}
+
+.input-highlight {
+    position: absolute;
+    inset: 1px;
+    margin: 0;
+    padding: 12px;
+    border-radius: calc(var(--radius) - 1px);
+    overflow: auto;
+    pointer-events: none;
+    scrollbar-width: none;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text);
+}
+
+.input-highlight::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+}
+
+.input-area {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    padding: 12px;
+    background: transparent;
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    color: var(--text);
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    caret-color: var(--text);
     font-family: var(--font-mono);
     font-size: 13px;
     line-height: 1.6;
@@ -297,6 +334,53 @@ body {
 
 .input-area::placeholder {
     color: var(--text-muted);
+    -webkit-text-fill-color: var(--text-muted);
+}
+
+.vwc-token-wt {
+    color: var(--syntax-wt);
+    font-weight: 600;
+}
+
+.vwc-token-br {
+    color: var(--syntax-br);
+    font-weight: 600;
+}
+
+.vwc-token-hash {
+    color: var(--syntax-hash);
+    font-weight: 600;
+}
+
+.vwc-token-sup {
+    color: var(--syntax-power);
+    font-weight: 600;
+}
+
+.vwc-token-sub {
+    color: var(--syntax-sub);
+    font-weight: 600;
+}
+
+.vwc-token-mu {
+    color: var(--syntax-greek);
+    font-weight: 600;
+}
+
+.input-hint {
+    display: none;
+    margin-top: 8px;
+    padding: 6px 10px;
+    border: 1px solid #efe2b6;
+    border-radius: var(--radius);
+    background: #fffcf2;
+    color: #7f6920;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.input-hint.show {
+    display: block;
 }
 
 /* Tabs */
@@ -652,12 +736,12 @@ body {
 /* Input Validation States */
 .input-area.input-error {
     border-color: #dc2626;
-    background-color: #fef2f2;
+    background-color: rgba(254, 242, 242, 0.7);
 }
 
 .input-area.input-warning {
-    border-color: #f59e0b;
-    background-color: #fffbeb;
+    border-color: #d8bb73;
+    background-color: transparent;
 }
 
 .input-area.input-error:focus {
@@ -666,8 +750,8 @@ body {
 }
 
 .input-area.input-warning:focus {
-    border-color: #f59e0b;
-    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+    border-color: #d8bb73;
+    box-shadow: 0 0 0 2px rgba(216, 187, 115, 0.18);
 }
 
 /* Image Actions */
@@ -712,13 +796,13 @@ body {
 
 /* Focus */
 :focus {
-    outline: 2px solid var(--text-secondary);
+    outline: 2px solid var(--focus);
     outline-offset: 2px;
 }
 
 button:focus,
 a:focus {
-    outline: 2px solid var(--text-secondary);
+    outline: 2px solid var(--focus);
     outline-offset: 2px;
 }
 
@@ -751,7 +835,8 @@ a:focus {
 }
 
 .footer a {
-    color: var(--text-secondary);
+    color: #0f172a;
+    font-weight: 700;
     text-decoration: none;
     transition: color 0.15s;
 }

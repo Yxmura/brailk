@@ -14,7 +14,6 @@ from .constants import (
     STRUCTURAL_CODES,
 )
 
-
 # Math function names that Typst recognizes as built-in.
 # These must NOT be split into separate letters.
 MATH_FUNCTIONS = {
@@ -127,16 +126,13 @@ class VWCConverter:
 
     def convert(self) -> str:
         """Main entry point. Returns the Typst string."""
-        # Validate syntax before conversion
-        from .validator import validate_vwc
-
-        validate_vwc(self.input)
-
         while self.pos < len(self.input):
             ch = self.peek()
 
             if ch == "μ" or ch == "µ":  # U+03BC (Greek mu) or U+00B5 (micro sign)
                 self.handle_greek()
+            elif ch == "*":
+                self.handle_asterisk()
             elif ch == "$":
                 self.handle_dollar()
             elif ch == "¨":
@@ -217,27 +213,48 @@ class VWCConverter:
         else:
             self.emit("μ")
 
+    def handle_asterisk(self):
+        """* -> dot"""
+        self.advance()
+        self.emit(" dot ")
+
     def handle_dollar(self):
         """$ is the entry key for special symbols and structures."""
         self.advance()  # skip the $
 
+        needs_structure_space = bool(
+            self.output and self.output[-1] and self.output[-1][-1].isalnum()
+        )
+
         # Check structural forms first (these need special parsing)
         if self.starts_with("br"):
+            if needs_structure_space:
+                self.emit(" ")
             self.handle_fraction()
             return
         if self.starts_with("wt"):
+            if needs_structure_space:
+                self.emit(" ")
             self.handle_root()
             return
         if self.starts_with("st"):
+            if needs_structure_space:
+                self.emit(" ")
             self.handle_system()
             return
         if self.starts_with("mat"):
+            if needs_structure_space:
+                self.emit(" ")
             self.handle_matrix()
             return
         if self.starts_with("det"):
+            if needs_structure_space:
+                self.emit(" ")
             self.handle_determinant()
             return
         if self.starts_with("com"):
+            if needs_structure_space:
+                self.emit(" ")
             self.handle_combination()
             return
         if self.starts_with("#"):
@@ -248,6 +265,8 @@ class VWCConverter:
         # Check line forms (accents)
         for code in LINE_FORMS_SORTED:
             if self.starts_with(code):
+                if needs_structure_space:
+                    self.emit(" ")
                 self.advance(len(code))
                 self.handle_line_form(LINE_FORMS[code])
                 return
@@ -295,7 +314,7 @@ class VWCConverter:
         """$wt starts a square root. Content until #."""
         self.advance(2)  # skip "wt"
 
-        if self.peek() == " ":
+        if self.peek() == " " or self.peek() == "¨":
             self.advance()
 
         radicand = self.collect_until_hash_or_single()
@@ -315,7 +334,7 @@ class VWCConverter:
 
         if self.starts_with("$wt"):
             self.advance(3)
-            if self.peek() == " ":
+            if self.peek() == " " or self.peek() == "¨":
                 self.advance()
             radicand = self.collect_until_hash_or_single()
             radicand_typst = VWCConverter(radicand).convert()
