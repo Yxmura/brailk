@@ -6,9 +6,9 @@ services:
     numInstances: 1
     region: frankfurt
     plan: free
-    branch: main
-    buildCommand: pip install flask requests typst
-    startCommand: python app.py
+    branch: master
+    buildCommand: pip install flask requests typst gunicorn
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4
     autoDeployTrigger: commit
     envVars:
       - key: FLASK_ENV
