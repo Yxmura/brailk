@@ -1,215 +1,187 @@
 """
-VWC syntax validator - ensures structures are properly closed and nested.
+VWC syntax validator - soft validation that lets converter handle most cases.
 """
 
-from typing import List, NamedTuple, Optional, Tuple
+from typing import List, NamedTuple, Optional
 
-from .exceptions import (
-    VWCUnclosedStructureError,
-    VWCNestingError,
-    VWCMismatchedCloserError,
-)
+
+class ValidationIssue(NamedTuple):
+    """A validation issue - severity determines how blocking it is."""
+
+    severity: str  # 'error' (blocking) or 'warning' (non-blocking)
+    message: str
+    position: int
 
 
 class StructureToken(NamedTuple):
     """Represents a structural element in VWC code."""
 
     type: str  # 'open' or 'close'
-    code: str  # e.g., '$br', '$wt', '#', '$#'
+    code: str
     position: int
-    line: int
-    column: int
 
 
 class VWCValidator:
     """
-    Validates VWC syntax before conversion.
+    Soft validator - returns issues but doesn't block conversion.
 
-    Checks for:
-    - Unclosed structures ($br, $wt, etc. without matching #)
-    - Improper nesting (starting new structure before closing previous)
-    - Mismatched closers
+    Only raises hard errors for truly catastrophic cases.
+    Most issues are returned as warnings to let the converter try anyway.
     """
 
-    # Structure opening codes that require # to close
     OPENING_CODES = {"$br", "$wt", "$mat", "$det", "$com", "$st"}
-
-    # Codes that close structures
     CLOSING_CODES = {"#", "$#"}
-
-    # All structural codes
     STRUCTURAL_CODES = OPENING_CODES | CLOSING_CODES
 
     def __init__(self, vwc_input: str):
         self.input = vwc_input
         self.length = len(vwc_input)
         self.pos = 0
-        self.line = 1
-        self.column = 1
 
-    def validate(self) -> None:
+    def get_issues(self) -> List[ValidationIssue]:
         """
-        Main validation entry point.
-
-        Raises:
-            VWCUnclosedStructureError: If a structure isn't closed
-            VWCNestingError: If structures are improperly nested
-            VWCMismatchedCloserError: If closers don't match properly
-        """
-        structures = self._tokenize_structures()
-        self._validate_structure_balance(structures)
-        self._validate_nesting(structures)
-
-    def _tokenize_structures(self) -> List[StructureToken]:
-        """
-        Scan input and identify all structural tokens.
+        Scan input and return all issues (warnings + errors).
 
         Returns:
-            List of StructureToken objects
+            List of ValidationIssue tuples - severity is 'warning' or 'error'
         """
+        issues = []
+        structures = self._tokenize_structures()
+
+        # Only check for catastrophic issues (actual errors)
+        # Missing # is just a warning - converter can handle it
+        for issue in self._check_catastrophic_issues(structures):
+            issues.append(issue)
+
+        # Check for unbalanced stuff but make it a warning, not error
+        for issue in self._check_balancing_warnings(structures):
+            issues.append(issue)
+
+        return issues
+
+    def _tokenize_structures(self) -> List[StructureToken]:
+        """Scan input and identify structural tokens."""
         structures = []
-
         while self.pos < self.length:
-            char = self.input[self.pos]
-
-            # Track line/column for error reporting
-            if char == "\n":
-                self.line += 1
-                self.column = 1
-            else:
-                self.column += 1
-
-            # Check for structural codes
             found_code = self._match_structural_code()
-
             if found_code:
                 token_type = "close" if found_code in self.CLOSING_CODES else "open"
                 structures.append(
-                    StructureToken(
-                        type=token_type,
-                        code=found_code,
-                        position=self.pos,
-                        line=self.line,
-                        column=self.column - len(found_code),
-                    )
+                    StructureToken(type=token_type, code=found_code, position=self.pos)
                 )
                 self.pos += len(found_code)
             else:
                 self.pos += 1
-
         return structures
 
     def _match_structural_code(self) -> Optional[str]:
-        """
-        Check if current position matches a structural code.
-
-        Returns:
-            The matched code if found, None otherwise
-        """
+        """Check if current position matches a structural code."""
         remaining = self.input[self.pos :]
-
-        # Try longer codes first (e.g., $# before #)
         for code in sorted(self.STRUCTURAL_CODES, key=len, reverse=True):
             if remaining.startswith(code):
                 return code
-
         return None
 
-    def _validate_structure_balance(self, structures: List[StructureToken]) -> None:
-        """
-        Check that all opening codes have corresponding closers.
+    def _check_catastrophic_issues(
+        self, structures: List[StructureToken]
+    ) -> List[ValidationIssue]:
+        """Only return errors for truly breaking issues."""
+        issues = []
 
-        Args:
-            structures: List of structural tokens
+        # Check for impossible-to-parse patterns
+        # Too many consecutive $ signs usually means broken input
+        dollar_count = 0
+        for i, char in enumerate(self.input):
+            if char == "$":
+                dollar_count += 1
+                if dollar_count >= 5:
+                    issues.append(
+                        ValidationIssue(
+                            "error", "Te veel $ symbolen - controllieer invoer", i
+                        )
+                    )
+                    break
+            else:
+                dollar_count = 0
 
-        Raises:
-            VWCUnclosedStructureError: If balance is incorrect
-        """
-        # Simple count check first
+        # Check for completely broken structure (e.g., $br$$wt)
+        consecutive_opens = 0
+        for s in structures:
+            if s.type == "open":
+                consecutive_opens += 1
+                if consecutive_opens >= 3:
+                    issues.append(
+                        ValidationIssue(
+                            "error",
+                            "Opeenvolgende structuren - mis je een #?",
+                            s.position,
+                        )
+                    )
+                    break
+            else:
+                consecutive_opens = 0
+
+        return issues
+
+    def _check_balancing_warnings(
+        self, structures: List[StructureToken]
+    ) -> List[ValidationIssue]:
+        """Return warnings for unbalanced structures - not blocking."""
+        issues = []
+
         opens = sum(1 for s in structures if s.type == "open")
         closes = sum(1 for s in structures if s.type == "close")
 
-        if opens > closes:
-            # Find the last unclosed structure
-            stack = []
-            for s in structures:
-                if s.type == "open":
-                    stack.append(s)
-                elif s.type == "close" and stack:
-                    stack.pop()
-
-            if stack:
-                last_unclosed = stack[-1]
-                raise VWCUnclosedStructureError(
-                    last_unclosed.code, last_unclosed.position
+        # Only warn if the imbalance is significant
+        diff = abs(opens - closes)
+        if diff >= 2:  # Allow 1 mismatch, warn at 2+
+            if opens > closes:
+                issues.append(
+                    ValidationIssue(
+                        "warning",
+                        "Mogelijk ontbreekt een # (kan nog steeds werken)",
+                        self.length,
+                    )
                 )
-        elif closes > opens:
-            # Find first extra closer
-            depth = 0
-            for s in structures:
-                if s.type == "open":
-                    depth += 1
-                elif s.type == "close":
-                    if depth == 0:
-                        raise VWCMismatchedCloserError("niets", s.code, s.position)
-                    depth -= 1
+            else:
+                issues.append(
+                    ValidationIssue(
+                        "warning", "Extra # gevonden (wordt genegeerd)", self.length
+                    )
+                )
 
-    def _validate_nesting(self, structures: List[StructureToken]) -> None:
-        """
-        Validate that structures are properly nested (no overlapping).
+        return issues
 
-        Args:
-            structures: List of structural tokens
+    def has_blocking_errors(self) -> bool:
+        """Check if there are any blocking errors."""
+        issues = self.get_issues()
+        return any(i.severity == "error" for i in issues)
 
-        Raises:
-            VWCNestingError: If nesting is invalid
-        """
-        stack: List[StructureToken] = []
-
-        for token in structures:
-            if token.type == "open":
-                # Check if we're trying to start same structure type (likely forgot to close)
-                if stack and stack[-1].code == token.code:
-                    raise VWCNestingError(stack[-1].code, token.code, token.position)
-                stack.append(token)
-
-            elif token.type == "close":
-                if not stack:
-                    raise VWCMismatchedCloserError("niets", token.code, token.position)
-                # Pop the matching opener
-                stack.pop()
+    def get_warnings(self) -> List[ValidationIssue]:
+        """Get only warnings (non-blocking issues)."""
+        issues = self.get_issues()
+        return [i for i in issues if i.severity == "warning"]
 
 
-def validate_vwc(vwc_input: str) -> None:
+def validate_vwc_soft(vwc_input: str) -> List[ValidationIssue]:
     """
-    Convenience function to validate VWC input.
+    Soft validation - returns issues but doesn't raise exceptions.
 
-    Args:
-        vwc_input: The VWC code to validate
-
-    Raises:
-        VWCUnclosedStructureError: If structures aren't closed
-        VWCNestingError: If improper nesting detected
-        VWCMismatchedCloserError: If closers don't match
+    Use this before conversion to show optional warnings.
     """
-    validator = VWCValidator(vwc_input)
-    validator.validate()
-
-
-def get_validation_errors(vwc_input: str) -> List[dict]:
-    """
-    Validate and return list of errors without raising.
-
-    Args:
-        vwc_input: The VWC code to validate
-
-    Returns:
-        List of error dictionaries, empty if valid
-    """
-    try:
-        validate_vwc(vwc_input)
+    if not vwc_input or not vwc_input.strip():
         return []
-    except (VWCUnclosedStructureError, VWCNestingError, VWCMismatchedCloserError) as e:
-        return [e.to_dict()]
-    except Exception as e:
-        return [{"error_type": "unknown", "message": str(e)}]
+    validator = VWCValidator(vwc_input)
+    return validator.get_issues()
+
+
+def is_valid_enough(vwc_input: str) -> bool:
+    """
+    Check if input is "valid enough" to attempt conversion.
+
+    Returns True unless there are blocking errors.
+    """
+    if not vwc_input or not vwc_input.strip():
+        return False
+    validator = VWCValidator(vwc_input)
+    return not validator.has_blocking_errors()

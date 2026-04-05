@@ -214,31 +214,30 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function validateInput(vwc) {
-    // Verwijder vorige validatie-states
+    // Clear any previous states
     vwcInput.classList.remove("input-error", "input-warning");
     setInputHint("");
 
     if (!vwc) return;
 
-    const warnings = [];
-
-    // Controleer op ongebalanceerde haakjes
-    const openBrackets = (vwc.match(/\(/g) || []).length;
-    const closeBrackets = (vwc.match(/\)/g) || []).length;
-
-    if (openBrackets !== closeBrackets) {
-      warnings.push("Haakjes lijken niet in balans.");
-    }
-
-    // Controleer op onafgesloten VWC codes
-    const hashCount = (vwc.match(/#/g) || []).length;
-    if (hashCount % 2 !== 0) {
-      warnings.push("Mogelijk ontbreekt een afsluitende #.");
-    }
-
-    if (warnings.length > 0) {
+    // Soft validation - only show hints for really obvious issues
+    // The converter will try to handle most things
+    
+    // Check for obvious broken patterns
+    const dollarMatches = vwc.match(/\$/g) || [];
+    if (dollarMatches.length >= 5) {
+      setInputHint("Controleer $ symbolen");
       vwcInput.classList.add("input-warning");
-      setInputHint(warnings.join(" "));
+      return;
+    }
+
+    // Check for consecutive structural opens (e.g., $br$wt without #)
+    const structuralOpens = vwc.match(/\$(br|wt|mat|det|com|st)/g) || [];
+    const closingHashes = (vwc.match(/#/g) || []).length;
+    
+    if (structuralOpens.length >= 3 && closingHashes < structuralOpens.length) {
+      setInputHint("Mogelijk # vergeten?");
+      vwcInput.classList.add("input-warning");
     }
   }
 
@@ -317,19 +316,15 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function sanitizeInput(input) {
-    // Verwijder karakters die problemen geven in Typst
-    const problematicChars = /["\\]/g;
+    // Minimal sanitization - only remove truly problematic chars for Typst
+    // Allow more flexibility to match "accepts a lot more" behavior
+    const problematicChars = /\\/g;
     const sanitized = input.replace(problematicChars, "");
 
-    // Toon toast als er karakters zijn verwijderd
+    // Only show toast if backslashes were removed (more impactful)
     const removedCount = input.length - sanitized.length;
     if (removedCount > 0) {
-      const charNames = [];
-      if (input.includes('"')) charNames.push('aanhalingstekens (")');
-      if (input.includes("\\")) charNames.push("backslashes (\\)");
-      showToast(
-        `${charNames.join(" en ")} verwijderd - niet toegestaan in wiskunde`,
-      );
+      showToast("Backslash verwijderd");
     }
 
     return sanitized;

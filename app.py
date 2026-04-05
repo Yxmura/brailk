@@ -14,12 +14,12 @@ from flask import Flask, jsonify, render_template, request
 from vwc_converter import vwc_to_typst
 from vwc_converter.exceptions import (
     VWCSyntaxError,
-    VWCUnclosedStructureError,
-    VWCNestingError,
-    VWCMismatchedCloserError,
 )
 
 app = Flask(__name__)
+
+# Max VWC input length to prevent server overload
+MAX_VWC_LENGTH = 2000
 
 # Cache directory for rendered images
 CACHE_DIR = Path(tempfile.gettempdir()) / "vwc_typst_cache"
@@ -112,25 +112,14 @@ def convert_endpoint():
     if not data or "vwc" not in data:
         return jsonify({"error": "Missing 'vwc' field"}), 400
 
+    if len(data["vwc"]) > MAX_VWC_LENGTH:
+        return jsonify(
+            {"error": f"Invoer te lang (max {MAX_VWC_LENGTH} karakters)"}
+        ), 400
+
     try:
         typst_output = vwc_to_typst(data["vwc"], display=data.get("display", False))
         return jsonify({"typst": typst_output, "input": data["vwc"]})
-    except (VWCUnclosedStructureError, VWCNestingError, VWCMismatchedCloserError) as e:
-        return jsonify(
-            {
-                "error": e.message,
-                "suggestion": e.suggestion,
-                "error_type": "vwc_syntax",
-            }
-        ), 400
-    except VWCSyntaxError as e:
-        return jsonify(
-            {
-                "error": e.message,
-                "suggestion": e.suggestion,
-                "error_type": "vwc_syntax",
-            }
-        ), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -145,6 +134,11 @@ def convert_and_render():
     data = request.get_json()
     if not data or "vwc" not in data:
         return jsonify({"error": "Missing 'vwc' field"}), 400
+
+    if len(data["vwc"]) > MAX_VWC_LENGTH:
+        return jsonify(
+            {"error": f"Invoer te lang (max {MAX_VWC_LENGTH} karakters)"}
+        ), 400
 
     vwc_input = data["vwc"]
     display = data.get("display", False)
@@ -178,26 +172,6 @@ def convert_and_render():
             }
         )
 
-    except (VWCUnclosedStructureError, VWCNestingError, VWCMismatchedCloserError) as e:
-        # VWC syntax errors - return structured error for frontend
-        return jsonify(
-            {
-                "error": e.message,
-                "suggestion": e.suggestion,
-                "position": e.position,
-                "error_type": "vwc_syntax",
-            }
-        ), 400
-    except VWCSyntaxError as e:
-        # Generic VWC syntax error
-        return jsonify(
-            {
-                "error": e.message,
-                "suggestion": e.suggestion,
-                "position": e.position,
-                "error_type": "vwc_syntax",
-            }
-        ), 400
     except Exception as e:
         import traceback
 
@@ -255,6 +229,11 @@ def download_pdf():
     if not data or "vwc" not in data:
         return jsonify({"error": "Missing 'vwc' field"}), 400
 
+    if len(data["vwc"]) > MAX_VWC_LENGTH:
+        return jsonify(
+            {"error": f"Invoer te lang (max {MAX_VWC_LENGTH} karakters)"}
+        ), 400
+
     vwc_input = data["vwc"]
     display = data.get("display", False)
 
@@ -280,22 +259,6 @@ def download_pdf():
             download_name="math.pdf",
         )
 
-    except (VWCUnclosedStructureError, VWCNestingError, VWCMismatchedCloserError) as e:
-        return jsonify(
-            {
-                "error": e.message,
-                "suggestion": e.suggestion,
-                "error_type": "vwc_syntax",
-            }
-        ), 400
-    except VWCSyntaxError as e:
-        return jsonify(
-            {
-                "error": e.message,
-                "suggestion": e.suggestion,
-                "error_type": "vwc_syntax",
-            }
-        ), 400
     except Exception as e:
         import traceback
 
@@ -338,22 +301,6 @@ def export_png():
             }
         )
 
-    except (VWCUnclosedStructureError, VWCNestingError, VWCMismatchedCloserError) as e:
-        return jsonify(
-            {
-                "error": e.message,
-                "suggestion": e.suggestion,
-                "error_type": "vwc_syntax",
-            }
-        ), 400
-    except VWCSyntaxError as e:
-        return jsonify(
-            {
-                "error": e.message,
-                "suggestion": e.suggestion,
-                "error_type": "vwc_syntax",
-            }
-        ), 400
     except Exception as e:
         import traceback
 
