@@ -171,3 +171,11 @@ cython_debug/
 
 # Jujutsu (jj) repo
 .jj/
+
+# Added by cargo
+
+/target
+
+# Rust build artifacts
+/target/
+Cargo.lock

@@ -1,97 +1,55 @@
-# VWC to Typst Converter
+# Brailk — VWC naar LaTeX Converter
 
-Convert VWC (Vlaamse Wiskundecode) — the linear mathematical notation used in Flemish education — to Typst.
+Convert VWC (Vlaamse Wiskundecode) to KaTeX-compatible LaTeX. Entirely client-side — runs in the browser via WebAssembly.
 
-## Project Structure
+## Stack
 
-```
-brailk/
-├── vwc_converter/          # Core package
-│   ├── __init__.py        # Package exports
-│   ├── constants.py       # Lookup tables (Greek, dollar codes, etc.)
-│   └── converter.py       # Main VWCConverter class
-├── app.py                 # Flask API server
-├── cli.py                 # Command-line interface
-├── tests.py               # Test suite
-└── README.md
-```
+- **WASM** — Converter compiled from Rust via `wasm32-unknown-unknown` (68KB, zero imports)
+- **JS** — Thin bridge (allocate WASM memory, call converter, parse JSON result)
+- **KaTeX** — Client-side LaTeX rendering
+- **HTML/CSS** — UI
+
+No backend, no Python, no Pyodide. Open `index.html` directly from the filesystem.
 
 ## Usage
 
-### As a Python library
+Open `index.html` in a browser. Type VWC code in the left panel, click "Omzetten". LaTeX renders on the right.
 
-```python
-from vwc_converter import vwc_to_typst
+### VWC examples
 
-result = vwc_to_typst("$br 2x+3/y#")
-print(result)  # $frac(2x+3, y)$
+| VWC | LaTeX |
+|-----|-------|
+| `x + y = 3` | `x + y \approx 3` |
+| `$br x+1/x-1#` | `\frac{x+1}{x-1}` |
+| `$wt x+1#` | `\sqrt{x+1}` |
+| `μa` | `\alpha` |
+| `sin(x)` | `\sin(x)` |
+| `x^2#` | `x^{2}` |
+| `$R` | `\mathbb{R}` |
 
-# Display math (block mode)
-result = vwc_to_typst("$int_a#^b#f(x)dx", display=True)
-print(result)  # $ integral_a^bf(x)dx $
-```
+## Development
 
-### Command line
-
-```bash
-# Convert inline
-python cli.py "μa+μb"
-# Output: $alpha+beta$
-
-# Convert with display math
-python cli.py --display "$br x+1/x-1#"
-# Output: $ frac(x+1, x-1) $
-
-# Interactive mode
-python cli.py --interactive
-
-# Read from file
-python cli.py -f input.vwc --no-wrap
-```
-
-### Flask API
+The converter is written in Rust in `src/lib.rs`. Build:
 
 ```bash
-# Start server
-python app.py
-
-# Or with Flask CLI
-export FLASK_APP=app.py
-flask run
+cargo build --target wasm32-unknown-unknown --release
+cp target/wasm32-unknown-unknown/release/vwc_converter.wasm static/
 ```
 
-Then POST to `/convert`:
+Run tests:
 
 ```bash
-curl -X POST http://localhost:5000/convert \
-  -H "Content-Type: application/json" \
-  -d '{"vwc": "μp", "display": true}'
-```
-
-Response:
-```json
-{
-  "typst": "$ pi $",
-  "input": "μp"
-}
-```
-
-## Running Tests
-
-```bash
-python tests.py              # Quick summary
-python tests.py --verbose    # Show all results
+cargo test
 ```
 
 ## Supported Features
 
-- Greek letters (μ prefix)
-- All dollar code symbols ($N, $Z, $elm, $int, etc.)
-- Superscripts and subscripts (^, _)
-- Fractions ($br ... / ... #)
-- Roots ($wt, ^^n#$wt)
-- Systems of equations ($st)
-- Matrices ($mat) and determinants ($det)
-- Binomials ($com)
-- Line forms/accents ($bgb, $hkb, etc.)
-- Spatiëvuller (¨ → space)
+- Greek letters (`μa`–`μw`, `μG`–`μV`)
+- Dollar code symbols (`$N`, `$Z`, `$R`, `$C`, `$inf`, `$int`, `$+-`, etc.)
+- Superscripts/subscripts (`^`, `_`)
+- Fractions (`$br ... / ... #`)
+- Roots (`$wt ... #`, `^^n#$wt ... #` for indexed roots)
+- Line forms (`$bgb`, `$hkb`, `$plrb`, `$pllb`)
+- Math functions (`sin`, `cos`, `log`, `lim`, `det`, etc.)
+- Text detection (multi-letter words → `\text{...}`)
+- Spatiëvuller (`¨` → space)
