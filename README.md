@@ -19,7 +19,7 @@ Open `index.html` in a browser. Type VWC code in the left panel, click "Omzetten
 
 | VWC | LaTeX |
 |-----|-------|
-| `x + y = 3` | `x + y \approx 3` |
+| `x + y = 3` | `x + y = 3` |
 | `$br x+1/x-1#` | `\frac{x+1}{x-1}` |
 | `$wt x+1#` | `\sqrt{x+1}` |
 | `μa` | `\alpha` |
