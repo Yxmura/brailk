@@ -53,34 +53,26 @@ const GREEK_UPPER_VALS: [&str; 24] = [
 ];
 
 // Dollar codes (sorted by length desc for longest match)
-const DOLLAR_KEYS: [&str; 68] = [
+const DOLLAR_KEYS: [&str; 77] = [
+    "???", "??", "?",
     "<=>", "nt//", "ntldr", "pllr", "pldr", "pldl", "ntelm", "ntdlv",
     "pllb", "plrb", "plsb", "plso", "dlv=", "bdlv=", "nt=", "nt<", "nt>", "nt|",
     "%%", "krd", "+-", "-+", "==", "<=", ">=", "!=", "//", "elm", "belm",
     "dlv", "bdlv", "dsn", "unie", "vrs", "plb", "plo", "ldr", "slg", "cgr",
     "par", "rhk", "4kt", "3hk", "hk", "rh", "bol",
-    "**", "na", "en", "of", "asa", "inf", "int", "plr", "pll", "nt",
-    "N", "Z", "Q", "R", "C", "O", "A", "E", "d", "*", "/", "=",
+    "**", "na", "en", "of", "asa", "inf", "int", "plr<", "plr>", "plr", "pll", "nt", "N",
+    "Z", "Q", "Rot", "T", "L", "H", "R", "C", "O", "A", "E", "d", "*", "/", "=",
 ];
 
-const DOLLAR_VALS: [&str; 68] = [
-    "\\iff", "\\nparallel", "\\not\\perp",
-    "\\leftrightarrow", "\\implies", "\\impliedby",
-    "\\notin", "\\not\\subset",
-    "\\nwarrow", "\\nearrow", "\\nearrow", "\\searrow",
-    "\\subseteq", "\\supseteq",
-    "\\neq", "\\nless", "\\ngtr", "\\nmid",
-    "\\%\\%", "\\#", "\\pm", "\\mp",
-    "\\equiv", "\\leq", "\\geq", "\\neq", "\\parallel",
-    "\\in", "\\ni", "\\subset", "\\supset", "\\cap", "\\cup", "\\setminus",
-    "\\uparrow", "\\downarrow", "\\perp", "\\sim", "\\cong",
-    "\\Diamond", "\\square", "\\square", "\\triangle", "\\angle", "\\measuredangle",
-    "\\bullet",
-    "\\ast", "\\circ", "\\land", "\\lor", "\\iff", "\\infty", "\\int",
-    "\\to", "\\leftarrow", "\\neg",
-    "\\mathbb{N}", "\\mathbb{Z}", "\\mathbb{Q}", "\\mathbb{R}", "\\mathbb{C}",
-    "\\emptyset", "\\forall", "\\exists", "\\partial",
-    "\\times", "\\div", "\\approx",
+const DOLLAR_VALS: [&str; 77] = [
+    "\\text{???}", "\\text{??}", "\\text{?}",
+    "\\iff", "\\nparallel", "\\not\\perp", "\\leftrightarrow", "\\implies", "\\impliedby", "\\notin", "\\not\\subset",
+    "\\nwarrow", "\\nearrow", "\\nearrow", "\\searrow", "\\subseteq", "\\supseteq", "\\neq", "\\nless", "\\ngtr", "\\nmid", "\\char\"2030",
+    "\\#", "\\pm", "\\mp", "\\equiv", "\\leq", "\\geq", "\\neq", "\\parallel", "\\in", "\\ni",
+    "\\subset", "\\supset", "\\cap", "\\cup", "\\setminus", "\\uparrow", "\\downarrow", "\\perp", "\\sim", "\\cong",
+    "\\Diamond", "\\square", "\\square", "\\triangle", "\\angle", "\\measuredangle", "\\bullet",
+    "\\ast", "\\circ", "\\land", "\\lor", "\\iff", "\\infty", "\\int", "\\overset{<}{\\to}", "\\overset{>}{\\to}", "\\to", "\\leftarrow", "\\neg", "\\mathbb{N}",
+    "\\mathbb{Z}", "\\mathbb{Q}", "\\mathcal{R}", "\\mathcal{T}", "\\mathcal{L}", "\\mathcal{H}", "\\mathbb{R}", "\\mathbb{C}", "\\emptyset", "\\forall", "\\exists", "\\partial", "\\times", "\\div", "\\approx",
 ];
 
 // ====== Converter ======
@@ -445,7 +437,7 @@ impl<'a> Converter<'a> {
 
         // Line forms: $bgb, $strb, $slgb, $hkb, $plrb, $pllb
         let line_forms = [
-            ("bgb", "\\overline"), ("strb", "\\overline"), ("slgb", "\\tilde"),
+            ("bgb", "\\overgroup"), ("strb", "\\overline"), ("slgb", "\\tilde"),
             ("hkb", "\\hat"), ("plrb", "\\vec"), ("pllb", "\\overleftarrow"),
         ];
         for (code, latex) in &line_forms {
@@ -562,6 +554,15 @@ impl<'a> Converter<'a> {
                     break;
                 }
                 self.pos += 1;
+            } else if c >= 0x80 {
+                let (ch, width) = self.next_char();
+                let is_greek = (c == 0xC2 && self.peek(1) == 0xB5)
+                    || (c == 0xCE && (self.peek(1) == 0xBC || self.peek(1) == 0xBB));
+                if width > 1 && ch.is_alphabetic() && !is_greek {
+                    self.pos += width;
+                } else {
+                    break;
+                }
             } else if c == b' ' {
                 self.pos += 1;
             } else {
@@ -689,6 +690,25 @@ impl<'a> Converter<'a> {
                 continue;
             }
 
+            if c >= 0x80 {
+                let (ch, width) = self.next_char();
+                if ch.is_alphabetic() {
+                    self.emit("\\text{");
+                    self.emit_char(ch);
+                    self.emit("}");
+                } else {
+                    self.emit_char(ch);
+                }
+                self.pos += width;
+                continue;
+            }
+
+            if c == b'%' {
+                self.emit("\\%");
+                self.pos += 1;
+                continue;
+            }
+
             // $ codes
             if c == b'$' {
                 self.handle_dollar();
@@ -739,6 +759,15 @@ impl<'a> Converter<'a> {
 
             if c == b'^' {
                 self.handle_super();
+                continue;
+            }
+
+            if c == b'_' && self.pos + 1 < self.input.len() && self.peek(1) == b'_' {
+                self.pos += 2;
+                let content = self.collect_sub_or_super();
+                self.emit("{}_{");
+                self.emit(&content);
+                self.emit("}");
                 continue;
             }
 
@@ -1236,7 +1265,7 @@ mod tests {
         let input = b"$bgb XY#";
         let mut cvt = Converter::new(input, false);
         cvt.convert_inner();
-        assert_eq!(cvt.output, "\\overline{\\text{XY}}");
+        assert_eq!(cvt.output, "\\overgroup{\\text{XY}}");
     }
 
     #[test]
@@ -1284,7 +1313,7 @@ mod tests {
         let input = b"50%$%%";
         let mut cvt = Converter::new(input, false);
         cvt.convert_inner();
-        assert_eq!(cvt.output, "50%\\%\\%");
+        assert_eq!(cvt.output, "50\\%\\char\"2030");
     }
 
     #[test]
@@ -1509,5 +1538,55 @@ mod tests {
         let mut cvt = Converter::new(input, false);
         cvt.convert_inner();
         assert_eq!(cvt.output, "\\begin{vmatrix}a&c\\\\b&d\\end{vmatrix}");
+    }
+
+    #[test]
+    fn test_document_specific_symbols() {
+        let input = b"$?$??$???";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\text{?}\\text{??}\\text{???}");
+    }
+
+    #[test]
+    fn test_script_set_codes() {
+        let input = b"$T$L$H$Rot";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\mathcal{T}\\mathcal{L}\\mathcal{H}\\mathcal{R}");
+    }
+
+    #[test]
+    fn test_arrow_with_relation_codes() {
+        let input = b"$plr<0$plr>0";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\overset{<}{\\to}0 \\overset{>}{\\to}0");
+    }
+
+    #[test]
+    fn test_left_subscript() {
+        let input = b"a__i#";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "a{}_{i}");
+    }
+
+    #[test]
+    fn test_raw_unicode() {
+        let input = b"caf\xc3\xa9";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\text{café}");
+
+        let input = b"\xc3\xa9";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\text{é}");
+
+        let input = b"\xe2\x88\x9e";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "∞");
     }
 }
