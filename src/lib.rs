@@ -48,7 +48,7 @@ const GREEK_UPPER_KEYS: [char; 24] = [
 ];
 const GREEK_UPPER_VALS: [&str; 24] = [
     "A", "B", "\\Gamma", "\\Delta", "E", "Z", "H", "\\Theta",
-    "I", "K", "\\Lambda", "M", "N", "\\Xi", "O", "\\prod", "R",
+    "I", "K", "\\Lambda", "M", "N", "\\Xi", "O", "\\prod", "P",
     "\\sum", "T", "Y", "\\Phi", "X", "\\Psi", "\\Omega",
 ];
 
@@ -1433,6 +1433,14 @@ mod tests {
     }
 
     #[test]
+    fn test_greek_upper_rho_code() {
+        let input = b"\xc2\xb5R";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "P");
+    }
+
+    #[test]
     fn test_greek_gamma_code() {
         let input = b"\xc2\xb5g";
         let mut cvt = Converter::new(input, false);
@@ -1625,4 +1633,220 @@ mod tests {
         cvt.convert_inner();
         assert_eq!(cvt.output, "∞");
     }
+    #[test]
+    fn test_v6_01_root_fraction_combined() {
+        let input = b"$wt 3/4-2#";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\sqrt{\\frac{3}{4}-2}");
+    }
+
+    #[test]
+    fn test_v6_02_root_fraction_then_minus() {
+        let input = b"$wt 3/4#-2";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\sqrt{\\frac{3}{4}} - 2");
+    }
+
+    #[test]
+    fn test_v6_03_nested_root_product() {
+        let input = b"$wt ab#*^^4#$wt c";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\sqrt{\\text{ab}} \\times \\sqrt[4]{c}");
+    }
+
+    #[test]
+    fn test_v6_04_indexed_root_plus() {
+        let input = b"^^4#$wt a^2n##+4";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\sqrt[4]{a^{2n}} + 4");
+    }
+
+    #[test]
+    fn test_v6_05_indexed_root_symbol_index() {
+        let input = b"^^p#$wt a^2n#+4#";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\sqrt[p]{a^{2n}+4}");
+    }
+
+    #[test]
+    fn test_v6_06_angle_symbol() {
+        let input = b"$hk A";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\angle A");
+    }
+
+    #[test]
+    fn test_v6_07_square_symbol() {
+        let input = b"$4kt ABCD";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\square \\text{ABCD}");
+    }
+
+    #[test]
+    fn test_v6_08_bullet_symbol() {
+        let input = b"$bol O";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\bullet O");
+    }
+
+    #[test]
+    fn test_v6_09_integral_with_limits() {
+        let input = b"$int_a#^b#f(x)dx =[F(x)]_a#^b";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\int_{a}^{b}f(x)\\text{dx } = [F(x)]_{a}^{b}");
+    }
+
+    #[test]
+    fn test_v6_10_limit_with_arrow() {
+        let input = b"lim_h$plr< 0#$br \xc2\xb5DI(x)/h#";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\lim_{h \\overset{<}{\\to} 0}\\frac{\\Delta I(x)}{h}");
+    }
+
+    #[test]
+    fn test_v6_11_log_with_left_base() {
+        let input = b"^^a#log \xc2\xb5a";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\log_{a} \\alpha");
+    }
+
+    #[test]
+    fn test_v6_12_fraction_with_greek_terms() {
+        let input = b"$br \xc2\xb5a+\xc2\xb5b/\xc2\xb5h-\xc2\xb5d#";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\frac{\\alpha+\\beta}{\\chi-\\delta}");
+    }
+
+    #[test]
+    fn test_v6_13_fraction_with_functions() {
+        let input = b"$br sin\xc2\xa8\xc2\xb5x/cos\xc2\xa8\xc2\xb5y#";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\frac{\\sin \\xi}{\\cos \\upsilon}");
+    }
+
+    #[test]
+    fn test_v6_14_compound_fraction_double_bar() {
+        let input = b"$br$br\xc2\xa8a/b+c#//d#";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\frac{\\frac{a}{b+c}}{d}");
+    }
+
+    #[test]
+    fn test_v6_15_complex_compound_fraction() {
+        let input = b"$br a+$br\xc2\xa82bc/d-e#+f//g/h-3#";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\frac{a+\\frac{2bc}{d-e}+f}{\\frac{g}{h}-3}");
+    }
+
+    #[test]
+    fn test_v6_16_three_row_system() {
+        let input = b"$st3\nx+y=1\nx-y=2\ny=0$#";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\begin{cases}x+y=1\\\\x-y=2\\\\y=0\\end{cases}");
+    }
+
+    #[test]
+    fn test_v6_17_matrix_two_by_three() {
+        let input = b"$mat2.3\na  b  c\nd  e  f$#";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\begin{pmatrix}a&b&c\\\\d&e&f\\end{pmatrix}");
+    }
+
+    #[test]
+    fn test_v6_18_determinant_greek() {
+        let input = b"$det3.3\n\xc2\xb5a  \xc2\xb5b  \xc2\xb5h\n\xc2\xb5d  \xc2\xb5e  \xc2\xb5f\n\xc2\xb5g  \xc2\xb5h  \xc2\xb5i$#";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\begin{vmatrix}\\alpha&\\beta&\\chi\\\\\\delta&\\epsilon&\\phi\\\\\\gamma&\\chi&\\iota\\end{vmatrix}");
+    }
+
+    #[test]
+    fn test_v6_19_combination_shape() {
+        let input = b"$com\nn\np$#";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\binom{n}{p}");
+    }
+
+    #[test]
+    fn test_v6_20_flat_line_form() {
+        let input = b"$strb p+q#";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\overline{p+q}");
+    }
+
+    #[test]
+    fn test_v6_21_wavy_line_form() {
+        let input = b"$slgb \xc2\xb5a+\xc2\xb5b#";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\tilde{\\alpha+\\beta}");
+    }
+
+    #[test]
+    fn test_v6_22_angle_line_form() {
+        let input = b"$hkb A#";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\hat{A}");
+    }
+
+    #[test]
+    fn test_v6_23_vector_line_form() {
+        let input = b"$plrb AB#";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\vec{\\text{AB}}");
+    }
+
+    #[test]
+    fn test_v6_24_left_arrow_line_form() {
+        let input = b"$pllb AB#";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\overleftarrow{\\text{AB}}");
+    }
+
+    #[test]
+    fn test_v6_25_subscript_then_exponent() {
+        let input = b"x_2#^3";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "x_{2}^{3}");
+    }
+
+    #[test]
+    fn test_v6_26_mixed_number() {
+        let input = b"3\xc2\xa82/5";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "3\\frac{2}{5}");
+    }
+
+    #[test]
+    fn test_v6_27_compound_simple_fractions() {
+        let input = b"7/20-3/24";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\frac{7}{20} - \\frac{3}{24}");
+    }
+
 }
