@@ -36,7 +36,7 @@ const GREEK_LOWER_KEYS: [char; 24] = [
     'n', 'x', 'o', 'p', 'r', 's', 't', 'y', 'f', 'h', 'ç', 'ö',
 ];
 const GREEK_LOWER_VALS: [&str; 24] = [
-    "\\alpha", "\\beta", "\\Gamma", "\\delta", "\\epsilon", "\\zeta",
+    "\\alpha", "\\beta", "\\gamma", "\\delta", "\\epsilon", "\\zeta",
     "\\eta", "\\theta", "\\iota", "\\kappa", "\\lambda", "\\mu",
     "\\nu", "\\xi", "\\omicron", "\\pi", "\\rho", "\\sigma",
     "\\tau", "\\upsilon", "\\phi", "\\chi", "\\psi", "\\omega",
@@ -1433,11 +1433,11 @@ mod tests {
     }
 
     #[test]
-    fn test_greek_gamma_capital_code() {
+    fn test_greek_gamma_code() {
         let input = b"\xc2\xb5g";
         let mut cvt = Converter::new(input, false);
         cvt.convert_inner();
-        assert_eq!(cvt.output, "\\Gamma");
+        assert_eq!(cvt.output, "\\gamma");
     }
 
     #[test]
