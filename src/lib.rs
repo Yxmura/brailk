@@ -116,11 +116,24 @@ impl<'a> Converter<'a> {
         self.remaining().starts_with(s.as_bytes())
     }
 
+    fn ends_with_command(&self) -> bool {
+        let bytes = self.output.as_bytes();
+        let mut i = bytes.len();
+        while i > 0 && bytes[i - 1].is_ascii_alphabetic() { i -= 1; }
+        i > 0 && i < bytes.len() && bytes[i - 1] == b'\\'
+    }
+
     fn emit(&mut self, s: &str) {
+        if s.starts_with(|c: char| c.is_ascii_alphabetic()) && self.ends_with_command() {
+            self.output.push(' ');
+        }
         self.output.push_str(s);
     }
 
     fn emit_char(&mut self, c: char) {
+        if c.is_ascii_alphabetic() && self.ends_with_command() {
+            self.output.push(' ');
+        }
         self.output.push(c);
     }
 
@@ -291,6 +304,13 @@ impl<'a> Converter<'a> {
         (b as char, 1)
     }
 
+    fn emit_greek(&mut self, value: &str) {
+        self.emit(value);
+        if self.pos < self.input.len() && is_alpha(self.peek(0)) {
+            self.emit(" ");
+        }
+    }
+
     fn handle_greek(&mut self) {
         // μ or µ consumed already
         if self.pos >= self.input.len() {
@@ -303,14 +323,14 @@ impl<'a> Converter<'a> {
         // Check single-char Greek (lowercase)
         for i in 0..GREEK_LOWER_KEYS.len() {
             if GREEK_LOWER_KEYS[i] == key {
-                self.emit(GREEK_LOWER_VALS[i]);
+                self.emit_greek(GREEK_LOWER_VALS[i]);
                 return;
             }
         }
         // Check uppercase
         for i in 0..GREEK_UPPER_KEYS.len() {
             if GREEK_UPPER_KEYS[i] == key {
-                self.emit(GREEK_UPPER_VALS[i]);
+                self.emit_greek(GREEK_UPPER_VALS[i]);
                 return;
             }
         }
@@ -1145,7 +1165,7 @@ mod tests {
         let input = b"\xc2\xb5ax";
         let mut cvt = Converter::new(input, false);
         cvt.convert_inner();
-        assert_eq!(cvt.output, "\\alphax");
+        assert_eq!(cvt.output, "\\alpha x");
     }
 
     #[test]
@@ -1570,6 +1590,22 @@ mod tests {
         let mut cvt = Converter::new(input, false);
         cvt.convert_inner();
         assert_eq!(cvt.output, "a{}_{i}");
+    }
+
+    #[test]
+    fn test_times_followed_by_letter() {
+        let input = b"$br a*x/b#";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "\\frac{a\\times x}{b}");
+    }
+
+    #[test]
+    fn test_div_followed_by_letter() {
+        let input = b"a/bx";
+        let mut cvt = Converter::new(input, false);
+        cvt.convert_inner();
+        assert_eq!(cvt.output, "a\\div\\text{bx}");
     }
 
     #[test]
